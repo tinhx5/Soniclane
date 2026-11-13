@@ -29,10 +29,12 @@ platform :ios do
       lock_when_sleeps: false
     )
 
+    keychain_path = lane_context[SharedValues::KEYCHAIN_PATH]
+
     # Get certificates and provisioning profiles
     get_certificates(
       api_key: api_key,
-      keychain_name: keychain_name,
+      keychain_path: keychain_path,
       keychain_password: keychain_password
     )
     get_provisioning_profile(
@@ -44,9 +46,7 @@ platform :ios do
     build_app(
       workspace: "Runner.xcworkspace",
       scheme: "Runner",
-      export_method: "app-store",
-      keychain_name: keychain_name,
-      keychain_password: keychain_password
+      export_method: "app-store"
     )
 
     # Upload to App Store Connect TestFlight
