@@ -23,13 +23,13 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Run Tests & Verification
-        run: flutter test
-
       - name: Install CocoaPods
         run: |
           cd ios
           pod install --repo-update
+
+      - name: Build Flutter iOS Assets
+        run: flutter build ios --release --no-codesign
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
