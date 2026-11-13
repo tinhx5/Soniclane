@@ -1,0 +1,57 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new build to TestFlight"
+  lane :beta do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+      key_content: ENV["APP_STORE_CONNECT_PRIVATE_KEY"],
+      is_key_content_base64: false,
+      in_house: false
+    )
+
+    keychain_name = "soniclane_ci_keychain"
+    keychain_password = "ci_password_123"
+    
+    # Ensure any stale keychain is removed
+    delete_keychain(name: keychain_name) if File.exist?(File.expand_path("~/Library/Keychains/#{keychain_name}-db"))
+
+    create_keychain(
+      name: keychain_name,
+      password: keychain_password,
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: false
+    )
+
+    # Get certificates and provisioning profiles
+    get_certificates(
+      api_key: api_key,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password
+    )
+    get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: "com.soniclane.app.soniclane"
+    )
+
+    # Build iOS archive & IPA
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      keychain_name: keychain_name,
+      keychain_password: keychain_password
+    )
+
+    # Upload to App Store Connect TestFlight
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
+    )
+
+    delete_keychain(name: keychain_name)
+  end
+end

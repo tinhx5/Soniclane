@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"secondary-fixed":"#b6ebff","surface-variant":"#333538","primary-fixed":"#ffdad8","tertiary-container":"#4d8eff","on-primary-container":"#5c000b","surface":"#111317","on-tertiary-fixed":"#001a42","outline":"#b08784","tertiary":"#adc6ff","surface-bright":"#37393d","secondary-container":"#00d2ff","inverse-primary":"#bf0024","inverse-on-surface":"#2f3034","on-tertiary-container":"#00285d","surface-container-high":"#282a2d","primary-fixed-dim":"#ffb3af","inverse-surface":"#e2e2e6","surface-container-low":"#1a1c1f","secondary":"#a5e7ff","secondary-fixed-dim":"#47d6ff","on-tertiary":"#002e6a","error-container":"#93000a","surface-dim":"#111317","error":"#ffb4ab","on-surface-variant":"#e9bcb9","tertiary-fixed-dim":"#adc6ff","surface-container-highest":"#333538","on-background":"#e2e2e6","on-secondary-container":"#00566a","on-surface":"#e2e2e6","surface-container":"#1e2023","on-secondary-fixed":"#001f28","on-primary-fixed":"#410006","surface-tint":"#ffb3af","on-secondary-fixed-variant":"#004e60","background":"#111317","on-error":"#690005","on-primary-fixed-variant":"#930019","surface-container-lowest":"#0c0e11","primary":"#ffb3af","outline-variant":"#5f3e3d","primary-container":"#ff5357","on-error-container":"#ffdad6","on-secondary":"#003543","on-primary":"#68000e","tertiary-fixed":"#d8e2ff","on-tertiary-fixed-variant":"#004395"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"margin-compact":"1rem","margin-expanded":"3rem","space-xs":"0.5rem","space-lg":"1.5rem","margin":"2rem","gutter-compact":"1rem","gutter-expanded":"2rem","gutter":"1.5rem","space-sm":"0.75rem","space-xl":"2.5rem","space-md":"1rem"},"fontFamily":{"body-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"headline-md":["Space Grotesk"],"headline-lg-mobile":["Space Grotesk"],"title-md":["Plus Jakarta Sans"],"headline-xl-mobile":["Space Grotesk"],"headline-lg":["Space Grotesk"],"body-sm":["Plus Jakarta Sans"],"headline-xl":["Space Grotesk"],"title-lg":["Plus Jakarta Sans"],"label-md":["Space Grotesk"],"label-lg":["Space Grotesk"],"label-sm":["Space Grotesk"]},"fontSize":{"body-lg":["18px",{"lineHeight":"26px","fontWeight":"500"}],"body-md":["16px",{"lineHeight":"22px","fontWeight":"400"}],"headline-md":["24px",{"lineHeight":"32px","fontWeight":"600"}],"headline-lg-mobile":["26px",{"lineHeight":"32px","letterSpacing":"0em","fontWeight":"700"}],"title-md":["18px",{"lineHeight":"24px","fontWeight":"600"}],"headline-xl-mobile":["32px",{"lineHeight":"40px","letterSpacing":"-0.01em","fontWeight":"700"}],"headline-lg":["36px",{"lineHeight":"44px","letterSpacing":"-0.01em","fontWeight":"700"}],"body-sm":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-xl":["48px",{"lineHeight":"56px","letterSpacing":"-0.02em","fontWeight":"700"}],"title-lg":["22px",{"lineHeight":"28px","fontWeight":"700"}],"label-md":["14px",{"lineHeight":"18px","letterSpacing":"0.05em","fontWeight":"600"}],"label-lg":["16px",{"lineHeight":"20px","letterSpacing":"0.04em","fontWeight":"700"}],"label-sm":["12px",{"lineHeight":"16px","letterSpacing":"0.08em","fontWeight":"600"}]}}}}</script></head><body class="bg-surface-container-lowest font-body-md text-on-surface antialiased selection:bg-secondary selection:text-on-secondary"><aside class="fixed left-0 top-0 bottom-0 w-20 z-50 bg-surface-container-lowest flex flex-col items-center py-space-md border-r border-surface-variant/40"><div class="w-14 h-14 rounded-xl flex items-center justify-center text-secondary mb-space-lg"><img alt="DriveFlow Logo" class="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(0,210,255,0.7)]" src="https://lh3.googleusercontent.com/aida/ALJJyrBIcQNXy1XP5FoczC4o_R-YkHPoEs_QPk5mNHEXlNDCg-6tFTE6XF7Ag_hQkFeOTkBOJdTl_6EESxYu0t-zN9NKhL8OuMoFmO4YmeZmopjBDXAUyRxDaoI--mVr4tuULacaHlGWzInAKbuw2_Dm1WHT2vkpkGNGMxKKS5PUOAVM5_soPWvQqWoGcem5YpoO98CwOPpWchiLC9BtKotNhE8z-t3ANKP03_U651QcdYg"/></div><nav class="flex-1 flex flex-col items-center gap-space-sm w-full px-space-xs" data-active-classes="bg-tertiary-container text-on-tertiary font-bold shadow-[0_0_20px_rgba(77,142,255,0.35)]"><a class="w-16 h-16 rounded-xl flex flex-col items-center justify-center gap-1 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="home" href="#"><span class="material-symbols-outlined text-[26px]">home</span><span class="font-label-sm text-label-sm uppercase tracking-wider">Home</span></a><a class="w-16 h-16 rounded-xl flex flex-col items-center justify-center gap-1 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="search" href="#"><span class="material-symbols-outlined text-[26px]" style="font-variation-settings: 'FILL' 1;">search</span><span class="font-label-sm text-label-sm uppercase tracking-wider">Search</span></a><a class="w-16 h-16 rounded-xl flex flex-col items-center justify-center gap-1 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="library" href="#"><span class="material-symbols-outlined text-[26px]">video_library</span><span class="font-label-sm text-label-sm uppercase tracking-wider">Library</span></a></nav><div class="flex flex-col items-center gap-space-md w-full px-space-xs"><button aria-label="User Profile" class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-surface-container active:scale-95 transition-all border border-surface-variant/30 group relative" type="button"><div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold font-headline-md text-[14px] shadow-sm">SL</div><span class="font-label-sm text-[10px] text-on-surface-variant group-hover:text-on-surface uppercase tracking-wider">Driver</span></button></div></aside><div class="pl-20"><header class="fixed top-0 left-20 right-0 h-16 bg-surface-container-lowest/80 backdrop-blur-xl z-40 flex items-center justify-between px-space-lg border-b border-surface-variant/30"><div class="flex items-center gap-space-md shrink-0"><div class="flex items-center gap-space-sm"><span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface"><span class="text-secondary-container"><font color="#e2e2e6">Sonic</font>lane</span></span></div></div><div class="flex-1 max-w-2xl mx-space-md"><div class="flex items-center gap-space-xs"><div class="relative flex-1 flex items-center h-11 px-space-md rounded-xl bg-surface-container border border-surface-variant/40"><span class="material-symbols-outlined text-[22px] text-secondary shrink-0 mr-space-sm">search</span><input class="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none truncate" id="cockpit-search-input" placeholder="Search songs, artists, mixes..." type="text" value="Midnight Drive Synthwave"/><button aria-label="Clear search" class="flex items-center justify-center w-8 h-8 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all shrink-0" id="clear-search-btn" type="button"><span class="material-symbols-outlined text-[18px]">close</span></button></div><button aria-label="Import URL or Paste Link" class="h-11 w-11 rounded-xl bg-surface-container text-secondary-container hover:bg-surface-container-high active:scale-95 transition-all shrink-0 flex items-center justify-center border border-surface-variant/40 shadow-sm" title="Paste Video or Stream Link" type="button"><span class="material-symbols-outlined text-[22px]">link</span></button><button aria-label="Activate Voice Command" class="h-11 px-space-md rounded-xl bg-secondary-container text-on-secondary-container font-label-md text-label-md font-bold flex items-center gap-2 shadow-[0_0_16px_rgba(0,210,255,0.3)] hover:brightness-110 active:scale-95 transition-all shrink-0" id="voice-search-trigger" type="button"><span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">mic</span><span class="uppercase tracking-wider font-bold hidden sm:inline text-label-sm">Voice</span></button></div></div></header><main class="relative pt-16 pb-28 min-h-screen bg-surface-container-lowest px-space-lg"><div class="flex flex-col w-full text-on-surface">
+<div class="w-full grid grid-cols-1 xl:grid-cols-12 gap-gutter-expanded items-start pb-6">
+<!-- LEFT COLUMN: COCKPIT HQ NOW PLAYING CENTERPIECE (Col 1-7, ~58%) -->
+<section class="xl:col-span-7 flex flex-col gap-space-md">
+<!-- Cockpit HUD Meta Header Bar -->
+<div class="flex items-center justify-between px-space-md py-space-xs rounded-xl bg-surface-container-low shadow-sm">
+<div class="flex items-center gap-space-sm">
+<button aria-label="Minimize Cockpit View" class="w-14 h-14 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center active:scale-95 transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[28px]">keyboard_arrow_down</span>
+</button>
+<!-- Audio / Video Mode Toggle Pill -->
+<div class="inline-flex items-center bg-surface-container-lowest p-1 rounded-full shadow-inner">
+<button class="px-space-md py-2 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-label-md font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_16px_rgba(0,210,255,0.4)]" type="button">
+<span class="material-symbols-outlined text-[18px]">audiotrack</span>
+<span>AUDIO</span>
+</button>
+<button class="px-space-md py-2 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">videocam</span>
+<span>VIDEO</span>
+</button>
+</div>
+</div>
+<!-- Master DSP & Hardware Source Badges -->
+<div class="flex items-center gap-space-xs">
+<div class="hidden sm:flex items-center gap-2 px-space-md py-2 rounded-xl bg-surface-container text-secondary font-label-sm text-label-sm tracking-wide">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse shadow-[0_0_8px_#00d2ff]"></span>
+<span class="font-bold">96kHz / 24-bit FLAC</span>
+</div>
+<div class="flex items-center gap-2 px-space-md py-2 rounded-xl bg-surface-container-high text-on-surface font-label-sm text-label-sm font-semibold shadow-sm">
+<span class="material-symbols-outlined text-[18px] text-secondary">surround_sound</span>
+<span class="hidden md:inline">BMW Hi-Fi DSP</span>
+<span class="md:hidden">Hi-Fi</span>
+</div>
+</div>
+</div>
+<!-- Hero Cyberpunk Album Visual Art & Overlaid Audio Visualizer -->
+<div class="relative w-full rounded-2xl bg-surface-container-lowest overflow-hidden shadow-2xl flex flex-col justify-end group">
+<!-- Ambient Neon Glow Scrim behind Artwork -->
+<div class="absolute -top-12 -left-12 w-64 h-64 bg-secondary-container/20 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-12 -right-12 w-64 h-64 bg-primary-container/25 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Synthwave Cyberpunk Album Artwork -->
+<div class="relative w-full aspect-[16/10] sm:aspect-[16/9] overflow-hidden rounded-2xl">
+<img alt="Cyberpunk Night Drive 2077 Album Art" class="w-full h-full object-cover object-center group-hover:scale-[1.02] transition-transform duration-700 ease-out" src="https://lh3.googleusercontent.com/aida/ALJJyrDY5u2qmU7cjydN4-EMOgfuLdTgoKzO-HU1hVRnVYusAazBtC_w4eE4cdjZaZ1Vu1KEtrDnkwzyDWEgNluVw46rcizKkvWEjUtdev_-Qer1wNZ4Fgyuj87esV5YcXQmtKEfJuT2IGs3dhhZC-5eaAqlbTyWtTe3UBy-NGIAIlqmoX6k4vrO9JnAQkFxo0guQtYW5v_CMVj3nXTQ1oNvM9pQBkgEZDleUXqEjkqGGAo0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<!-- Top-Right Live Cockpit Badge -->
+<div class="absolute top-4 right-4 flex items-center gap-2 px-space-md py-1.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-secondary font-label-sm text-label-sm font-bold shadow-lg">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-ping"></span>
+<span>LIVE CABIN STREAM</span>
+</div>
+<!-- Bottom Audio Equalizer Wave Graphic Overlaid -->
+<div class="absolute bottom-4 left-6 right-6 flex items-end justify-between h-14 gap-1.5 px-space-md py-2 rounded-xl bg-surface-container-lowest/60 backdrop-blur-md">
+<div class="w-1.5 rounded-full bg-secondary-container animate-[pulse_1s_infinite] h-[35%]"></div>
+<div class="w-1.5 rounded-full bg-secondary-container animate-[pulse_0.7s_infinite_0.1s] h-[65%]"></div>
+<div class="w-1.5 rounded-full bg-secondary animate-[pulse_1.2s_infinite_0.3s] h-[85%]"></div>
+<div class="w-1.5 rounded-full bg-tertiary-container animate-[pulse_0.9s_infinite_0.2s] h-[45%]"></div>
+<div class="w-1.5 rounded-full bg-tertiary-container animate-[pulse_1.1s_infinite_0.4s] h-[100%] shadow-[0_0_12px_rgba(77,142,255,0.7)]"></div>
+<div class="w-1.5 rounded-full bg-primary-container animate-[pulse_0.8s_infinite_0.25s] h-[75%] shadow-[0_0_12px_rgba(255,83,87,0.7)]"></div>
+<div class="w-1.5 rounded-full bg-primary-container animate-[pulse_1.3s_infinite_0.15s] h-[90%]"></div>
+<div class="w-1.5 rounded-full bg-secondary-container animate-[pulse_0.6s_infinite_0.5s] h-[60%]"></div>
+<div class="w-1.5 rounded-full bg-secondary animate-[pulse_1.0s_infinite_0.3s] h-[40%]"></div>
+<div class="w-1.5 rounded-full bg-secondary-container animate-[pulse_0.75s_infinite_0.2s] h-[80%]"></div>
+<div class="w-1.5 rounded-full bg-primary-container animate-[pulse_1.4s_infinite_0.1s] h-[55%]"></div>
+<div class="w-1.5 rounded-full bg-tertiary-container animate-[pulse_0.9s_infinite_0.45s] h-[70%]"></div>
+<div class="w-1.5 rounded-full bg-secondary-container animate-[pulse_1.1s_infinite_0.35s] h-[95%]"></div>
+<div class="w-1.5 rounded-full bg-secondary animate-[pulse_0.8s_infinite_0.2s] h-[50%]"></div>
+<div class="w-1.5 rounded-full bg-primary-container animate-[pulse_1.2s_infinite_0.05s] h-[85%]"></div>
+<div class="w-1.5 rounded-full bg-secondary-container animate-[pulse_0.95s_infinite_0.4s] h-[60%]"></div>
+<div class="w-1.5 rounded-full bg-tertiary-container animate-[pulse_0.7s_infinite_0.3s] h-[40%]"></div>
+<div class="w-1.5 rounded-full bg-secondary-container animate-[pulse_1.05s_infinite_0.15s] h-[65%]"></div>
+</div>
+</div>
+</div>
+<!-- Track Information & Glanceable Driver Telemetry -->
+<div class="flex items-center justify-between px-space-sm pt-space-xs">
+<div class="flex flex-col min-w-0 pr-space-md">
+<div class="flex items-center gap-space-sm mb-1">
+<h1 class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight truncate">Midnight Horizon</h1>
+<span class="px-2.5 py-0.5 rounded-md bg-primary-container text-on-primary-container font-label-sm text-label-sm font-bold uppercase tracking-wider shrink-0 shadow-[0_0_12px_rgba(255,83,87,0.4)]">MASTER</span>
+</div>
+<div class="flex items-center gap-2 font-title-md text-title-md text-on-surface-variant truncate">
+<span>Kavinsky x DriveFlow Originals</span>
+<span class="w-1 h-1 rounded-full bg-on-surface-variant"></span>
+<span class="text-secondary font-label-md text-label-md font-semibold">Synthwave 2077</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button aria-label="Favorite Track" class="w-14 h-14 rounded-full bg-surface-container hover:bg-surface-container-high text-primary-container flex items-center justify-center active:scale-95 transition-all shadow-[0_0_18px_rgba(255,83,87,0.3)]" type="button">
+<span class="material-symbols-outlined text-[30px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<button aria-label="Share or Add to Playlist" class="w-14 h-14 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface flex items-center justify-center active:scale-95 transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[26px]">playlist_add</span>
+</button>
+</div>
+</div>
+<!-- High-Precision Scrubbing Bar with Dual-Tone Gradient -->
+<div class="flex flex-col gap-2 px-space-sm mt-space-xs">
+<div class="relative w-full h-8 flex items-center cursor-pointer group" id="scrubber-container">
+<div class="w-full h-2 rounded-full bg-surface-variant overflow-hidden">
+<div class="h-full bg-gradient-to-r from-secondary-container via-tertiary-container to-primary-container rounded-full relative" style="width: 46%;">
+<div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+</div>
+</div>
+<!-- Tactile Thumb Grabber Target (Expanded 56px click zone for automotive safety) -->
+<div class="absolute left-[46%] -translate-x-1/2 w-6 h-6 rounded-full bg-on-surface shadow-[0_0_16px_rgba(0,210,255,0.9)] flex items-center justify-center pointer-events-none group-hover:scale-125 transition-transform">
+<div class="w-2.5 h-2.5 rounded-full bg-secondary-container"></div>
+</div>
+</div>
+<div class="flex items-center justify-between font-label-md text-label-md font-mono text-on-surface-variant">
+<span class="text-secondary font-bold">01:45</span>
+<span>-02:05</span>
+</div>
+</div>
+<!-- Main Playback Transport Matrix (All touch targets >= 56px) -->
+<div class="flex items-center justify-center gap-space-lg sm:gap-space-xl py-space-xs">
+<button aria-label="Shuffle" class="w-14 h-14 rounded-full bg-surface-container hover:bg-surface-container-high text-secondary flex items-center justify-center active:scale-90 transition-all shadow-[0_0_16px_rgba(0,210,255,0.25)] relative" type="button">
+<span class="material-symbols-outlined text-[26px]">shuffle</span>
+<span class="absolute bottom-2.5 w-1.5 h-1.5 rounded-full bg-secondary"></span>
+</button>
+<button aria-label="Previous Track" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center active:scale-90 transition-all shadow-md" type="button">
+<span class="material-symbols-outlined text-[34px]">skip_previous</span>
+</button>
+<!-- Oversized 76px Master Tactile Play/Pause Target -->
+<button aria-label="Play or Pause" class="w-20 h-20 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center active:scale-95 transition-all shadow-[0_0_32px_rgba(255,83,87,0.6)] hover:brightness-110" type="button">
+<span class="material-symbols-outlined text-[42px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button aria-label="Next Track" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center active:scale-90 transition-all shadow-md" type="button">
+<span class="material-symbols-outlined text-[34px]">skip_next</span>
+</button>
+<button aria-label="Repeat Track" class="w-14 h-14 rounded-full bg-surface-container hover:bg-surface-container-high text-secondary flex items-center justify-center active:scale-90 transition-all shadow-[0_0_16px_rgba(0,210,255,0.25)] relative" type="button">
+<span class="material-symbols-outlined text-[26px]">repeat</span>
+<span class="absolute bottom-2.5 w-1.5 h-1.5 rounded-full bg-secondary"></span>
+</button>
+</div>
+<!-- In-Cabin Quick Toggles Row (Audio DSP, Speed, Acoustic Boosts) -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-space-sm pt-space-xs">
+<button class="h-14 px-space-md rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center justify-between active:scale-95 transition-all shadow-sm" type="button">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Tempo</span>
+<span class="font-headline-md text-[16px] text-secondary font-bold font-mono">1.0x</span>
+</button>
+<button class="h-14 px-space-md rounded-xl bg-secondary-container/15 hover:bg-secondary-container/25 text-secondary flex items-center justify-between active:scale-95 transition-all shadow-[0_0_16px_rgba(0,210,255,0.15)]" type="button">
+<span class="font-label-sm text-label-sm uppercase tracking-wider font-bold">Bass Boost</span>
+<span class="font-headline-md text-[16px] font-bold font-mono">+4dB</span>
+</button>
+<button class="h-14 px-space-md rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center justify-between active:scale-95 transition-all shadow-sm" type="button">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Timer</span>
+<span class="font-headline-md text-[16px] text-on-surface font-semibold font-mono">45m</span>
+</button>
+<button class="h-14 px-space-md rounded-xl bg-tertiary-container/20 hover:bg-tertiary-container/30 text-tertiary flex items-center justify-between active:scale-95 transition-all shadow-[0_0_16px_rgba(77,142,255,0.2)]" type="button">
+<span class="font-label-sm text-label-sm uppercase tracking-wider font-bold">Spatial DSP</span>
+<span class="material-symbols-outlined text-[20px] text-tertiary" style="font-variation-settings: 'FILL' 1;">spatial_audio</span>
+</button>
+</div>
+</section>
+<!-- RIGHT COLUMN: QUEUE & HABIT-BASED RECOMMENDATIONS (Col 8-12, ~42%) -->
+<section class="xl:col-span-5 flex flex-col gap-space-md bg-surface-container-low/90 backdrop-blur-xl p-space-md rounded-2xl shadow-xl">
+<!-- Panel Title & Playlist Context -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[24px] text-secondary">queue_music</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">Up Next • Queue</h2>
+</div>
+<span class="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-mono text-[12px] font-semibold">14 tracks • 1h 45m</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Playing from: <span class="text-on-surface font-semibold">Road Trip Cybermix (High Fidelity)</span></p>
+</div>
+<!-- Interactive Tab Switching (Current Queue vs AI Driver Habit Flow) -->
+<div class="grid grid-cols-2 gap-space-xs p-1 rounded-xl bg-surface-container-lowest">
+<button class="h-11 rounded-lg bg-surface-container text-on-surface font-label-sm text-label-sm font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm" type="button">
+<span>Playlist (14)</span>
+</button>
+<button class="h-11 rounded-lg hover:bg-surface-container/60 text-secondary font-label-sm text-label-sm font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span>Habit AI (8)</span>
+</button>
+</div>
+<!-- Autoplay Switch Driver Pill -->
+<div class="flex items-center justify-between px-space-md py-3 rounded-xl bg-surface-container-highest/40">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="material-symbols-outlined text-[20px] text-secondary">tune</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm font-bold text-on-surface truncate">Auto-Flow: Driving Habits</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant truncate">Adapts tempo to highway vs traffic speed</span>
+</div>
+</div>
+<!-- Active 60px Automotive Slider Toggle -->
+<button aria-label="Toggle Auto-Flow" class="w-14 h-8 rounded-full bg-secondary-container p-1 flex items-center justify-end shadow-[0_0_14px_rgba(0,210,255,0.4)] active:scale-95 transition-all" type="button">
+<div class="w-6 h-6 rounded-full bg-surface-container-lowest shadow-md"></div>
+</button>
+</div>
+<!-- Scrollable Track List (Automotive touch targets >= 64px) -->
+<div class="flex flex-col gap-space-xs overflow-y-auto max-h-[510px] pr-1">
+<!-- 1. Now Playing Indicator Item -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container shadow-md">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="relative w-12 h-12 rounded-lg bg-surface-container-highest shrink-0 overflow-hidden flex items-center justify-center">
+<div class="w-full h-full bg-gradient-to-tr from-secondary-container to-primary-container opacity-80"></div>
+<span class="material-symbols-outlined absolute text-[22px] text-surface-container-lowest animate-pulse" style="font-variation-settings: 'FILL' 1;">equalizer</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-[15px] font-bold text-secondary truncate">Midnight Horizon</span>
+<span class="font-body-sm text-[13px] text-on-surface-variant truncate">Kavinsky • Playing Now</span>
+</div>
+</div>
+<span class="font-mono text-label-sm text-secondary font-bold">01:45</span>
+</div>
+<!-- 2. Next In Queue -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest hover:bg-surface-container active:scale-[0.99] transition-all cursor-pointer">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high shrink-0 flex items-center justify-center text-on-surface-variant">
+<span class="font-headline-md text-[16px] font-mono font-bold text-on-surface-variant">02</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-[15px] font-semibold text-on-surface truncate">Nightcall (Drive Rework)</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-[12px] text-on-surface-variant truncate">Kavinsky</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-primary font-mono text-[10px] font-bold">YT AUDIO</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-mono text-label-sm text-on-surface-variant">04:18</span>
+<button aria-label="Reorder track" class="w-10 h-10 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_indicator</span>
+</button>
+</div>
+</div>
+<!-- 3. Next Track -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest hover:bg-surface-container active:scale-[0.99] transition-all cursor-pointer">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high shrink-0 flex items-center justify-center text-on-surface-variant">
+<span class="font-headline-md text-[16px] font-mono font-bold text-on-surface-variant">03</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-[15px] font-semibold text-on-surface truncate">Pacific Coast Highway</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-[12px] text-on-surface-variant truncate">Kavinsky</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-secondary font-mono text-[10px] font-bold">USB HI-RES</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-mono text-label-sm text-on-surface-variant">03:55</span>
+<button aria-label="Reorder track" class="w-10 h-10 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_indicator</span>
+</button>
+</div>
+</div>
+<!-- 4. Next Track -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest hover:bg-surface-container active:scale-[0.99] transition-all cursor-pointer">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high shrink-0 flex items-center justify-center text-on-surface-variant">
+<span class="font-headline-md text-[16px] font-mono font-bold text-on-surface-variant">04</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-[15px] font-semibold text-on-surface truncate">Neon Blade (Phonk Cruise Mix)</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-[12px] text-on-surface-variant truncate">MoonDeity</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-secondary font-mono text-[10px] font-bold">FLAC</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-mono text-label-sm text-on-surface-variant">02:44</span>
+<button aria-label="Reorder track" class="w-10 h-10 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_indicator</span>
+</button>
+</div>
+</div>
+<!-- Habit-Based Section Divider -->
+<div class="flex items-center justify-between px-space-xs py-2 mt-space-xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">psychology</span>
+<span class="font-label-sm text-label-sm font-bold text-secondary uppercase tracking-wider">Driving Habit AI Suggestions</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary text-[11px] font-bold font-mono">85% Match</span>
+</div>
+<!-- 5. AI Suggested Track -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container active:scale-[0.99] transition-all cursor-pointer">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-12 h-12 rounded-lg bg-tertiary-container/20 text-tertiary shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-[24px]">spatial_tracking</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-[15px] font-semibold text-on-surface truncate">Resonance (Spatial Audio)</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-[12px] text-on-surface-variant truncate">HOME</span>
+<span class="px-1.5 py-0.2 rounded bg-tertiary-container/20 text-tertiary font-mono text-[10px] font-bold">AI HABIT</span>
+</div>
+</div>
+</div>
+<button aria-label="Add to Queue" class="w-10 h-10 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[22px]">add</span>
+</button>
+</div>
+<!-- 6. AI Suggested Track -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container active:scale-[0.99] transition-all cursor-pointer">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest text-primary shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">dark_mode</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-[15px] font-semibold text-on-surface truncate">After Dark</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-[12px] text-on-surface-variant truncate">Mr.Kitty</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-mono text-[10px] font-bold">NIGHT CRUISE</span>
+</div>
+</div>
+</div>
+<button aria-label="Add to Queue" class="w-10 h-10 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[22px]">add</span>
+</button>
+</div>
+<!-- 7. AI Suggested Track -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container active:scale-[0.99] transition-all cursor-pointer">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest text-secondary shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">commute</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-[15px] font-semibold text-on-surface truncate">Starboy (Kygo Remix)</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-[12px] text-on-surface-variant truncate">The Weeknd</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-secondary font-mono text-[10px] font-bold">COMMUTE FAV</span>
+</div>
+</div>
+</div>
+<button aria-label="Add to Queue" class="w-10 h-10 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-[22px]">add</span>
+</button>
+</div>
+</div>
+<!-- Queue Controls Footer Actions (Large, safe automotive buttons) -->
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs mt-auto">
+<button class="h-14 px-space-md rounded-xl bg-secondary-container text-on-secondary-container font-label-md text-label-md font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,210,255,0.35)] hover:brightness-110 active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">shuffle_on</span>
+<span>Smart Shuffle</span>
+</button>
+<button class="h-14 px-space-md rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-label-md text-label-md font-semibold uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[20px]">save_as</span>
+<span>Save Mix</span>
+</button>
+</div>
+</section>
+</div>
+</div></main><footer class="fixed bottom-0 left-20 right-0 h-24 bg-surface-container-low/95 backdrop-blur-2xl z-40 border-t border-surface-variant/40 px-space-lg flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-md min-w-[260px] max-w-[340px]"><div class="relative w-14 h-14 rounded-lg bg-surface-container-high overflow-hidden shrink-0 flex items-center justify-center border border-secondary/20 shadow-[0_0_12px_rgba(0,210,255,0.15)]"><img alt="Playing Thumbnail" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTJMEFV3ep3doRDo2kyDujGOru_rSdqr_yQ_lN5Lr68LE9fIGkpkNFNc4C7368ILTzBwwf2HSbgt-2JGSOWod2iVh5cSsHC2Kgd3k6-k7MOa2LX_5wXeKg_hEd87LHY4Td-2TJilGkuPTuc6P_Zi6E6O5OCSuinPwXEr56tNwnKvNIB5vD2qs_OqQas01o3SW-ifCB_09gLI7OLW9CVEh26YkxHnoXVgwPDPRxU6M"/><div class="absolute bottom-0 inset-x-0 h-1 bg-primary-container"></div></div><div class="flex flex-col min-w-0"><span class="font-title-md text-title-md text-on-surface truncate font-semibold">Nightcall (Synthwave)</span><div class="flex items-center gap-2 mt-1"><span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-secondary text-[11px] font-mono border border-secondary/20 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>💾 USB Master FLAC</span><span class="font-body-sm text-body-sm text-on-surface-variant truncate">Kavinsky</span></div></div></div><div class="flex-1 max-w-2xl flex flex-col items-center gap-1.5"><div class="w-full flex items-center gap-space-md"><span class="font-label-sm text-label-sm text-on-surface-variant min-w-[40px] text-right font-mono">01:45</span><div class="relative flex-1 h-3 flex items-center cursor-pointer group"><div class="w-full h-1.5 rounded-full bg-surface-variant/60 overflow-hidden"><div class="w-[44%] h-full bg-secondary rounded-full shadow-[0_0_10px_rgba(0,210,255,0.5)]"></div></div><div class="absolute left-[44%] -translate-x-1/2 w-4 h-4 rounded-full bg-on-background border-2 border-secondary shadow-[0_0_12px_rgba(0,210,255,0.7)] group-hover:scale-125 transition-transform"></div></div><span class="font-label-sm text-label-sm text-on-surface-variant min-w-[40px] font-mono">-02:05</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><button aria-label="Previous track" class="w-14 h-14 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[28px]">skip_previous</span></button><button aria-label="Play or pause" class="w-14 h-14 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shadow-[0_0_24px_rgba(255,83,87,0.45)] hover:brightness-110 active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">pause</span></button><button aria-label="Next track" class="w-14 h-14 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[28px]">skip_next</span></button></div><button class="hidden xl:flex items-center gap-2 px-space-md py-3 rounded-full bg-surface-container border border-surface-variant/50 text-on-surface hover:bg-surface-container-high active:scale-95 transition-all font-label-md text-label-md" type="button"><span class="material-symbols-outlined text-[20px] text-secondary">open_in_full</span><span>Full Player ↗</span></button></div></footer></div>
+</body></html>

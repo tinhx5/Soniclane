@@ -1,0 +1,169 @@
+<!DOCTYPE html><html class="dark" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24..48,100..700,0..1,-50..200" rel="stylesheet"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{width:100%;margin:0;padding:0;background-color:#111317;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "outline": "#b08784", "on-primary-fixed-variant": "#930019", "on-primary": "#68000e", "tertiary-fixed-dim": "#adc6ff", "surface-container-high": "#282a2d", "on-secondary-container": "#00566a", "secondary-fixed-dim": "#47d6ff", "surface": "#111317", "secondary-container": "#00d2ff", "on-surface": "#e2e2e6", "tertiary-fixed": "#d8e2ff", "surface-container-low": "#1a1c1f", "surface-dim": "#111317", "on-primary-container": "#5c000b", "on-tertiary-fixed-variant": "#004395", "primary": "#ffb3af", "inverse-on-surface": "#2f3034", "error": "#ffb4ab", "on-background": "#e2e2e6", "surface-container": "#1e2023", "tertiary": "#adc6ff", "surface-container-lowest": "#0c0e11", "surface-container-highest": "#333538", "outline-variant": "#5f3e3d", "secondary": "#a5e7ff", "primary-fixed-dim": "#ffb3af", "surface-bright": "#37393d", "on-tertiary-container": "#00285d", "on-surface-variant": "#e9bcb9", "secondary-fixed": "#b6ebff", "on-tertiary": "#002e6a", "on-secondary-fixed": "#001f28", "on-secondary": "#003543", "primary-container": "#ff5357", "background": "#111317", "inverse-surface": "#e2e2e6", "surface-tint": "#ffb3af", "on-tertiary-fixed": "#001a42", "primary-fixed": "#ffdad8", "error-container": "#93000a", "on-error": "#690005", "on-error-container": "#ffdad6", "surface-variant": "#333538", "on-secondary-fixed-variant": "#004e60", "inverse-primary": "#bf0024", "tertiary-container": "#4d8eff", "on-primary-fixed": "#410006" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "gutter-compact": "1rem", "margin-compact": "1rem", "gutter-expanded": "2rem", "space-xl": "2.5rem", "gutter": "1.5rem", "margin": "2rem", "margin-expanded": "3rem", "space-sm": "0.75rem", "space-md": "1rem", "space-lg": "1.5rem", "space-xs": "0.5rem" }, fontFamily: { "headline-lg": ["Space Grotesk"], "label-sm": ["Space Grotesk"], "headline-lg-mobile": ["Space Grotesk"], "label-md": ["Space Grotesk"], "title-lg": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "headline-xl-mobile": ["Space Grotesk"], "label-lg": ["Space Grotesk"], "headline-xl": ["Space Grotesk"], "headline-md": ["Space Grotesk"], "body-md": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"] }, fontSize: { "headline-lg": ["36px", { lineHeight: "44px", letterSpacing: "-0.01em", fontWeight: "700" }], "label-sm": ["12px", { lineHeight: "16px", letterSpacing: "0.08em", fontWeight: "600" }], "headline-lg-mobile": ["26px", { lineHeight: "32px", letterSpacing: "0em", fontWeight: "700" }], "label-md": ["14px", { lineHeight: "18px", letterSpacing: "0.05em", fontWeight: "600" }], "title-lg": ["22px", { lineHeight: "28px", fontWeight: "700" }], "body-sm": ["14px", { lineHeight: "20px", fontWeight: "400" }], "title-md": ["18px", { lineHeight: "24px", fontWeight: "600" }], "headline-xl-mobile": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "700" }], "label-lg": ["16px", { lineHeight: "20px", letterSpacing: "0.04em", fontWeight: "700" }], "headline-xl": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }], "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }], "body-md": ["16px", { lineHeight: "22px", fontWeight: "400" }], "body-lg": ["18px", { lineHeight: "26px", fontWeight: "500" }] } } } }</script></head><body class="bg-surface text-on-surface font-body-md text-body-md min-h-screen flex flex-col antialiased selection:bg-secondary-container selection:text-on-secondary-container"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl"><div class="h-16 px-gutter flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Go back" class="w-14 h-14 min-h-[56px] min-w-[56px] rounded-full flex items-center justify-center text-on-surface hover:text-secondary hover:bg-surface-container active:scale-95 transition-all" onclick="history.back()"><span class="material-symbols-outlined text-[28px]">home</span></button><div class="flex items-center bg-surface-container-high/60 p-1 rounded-full border border-outline-variant/20"><button class="px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 bg-primary/20 text-primary border border-primary/30" id="mode-audio"><span class="material-symbols-outlined text-sm">music_note</span>Audio</button><button class="px-3.5 py-1.5 rounded-full text-xs font-medium text-on-surface-variant flex items-center gap-1.5 hover:text-on-surface" id="mode-video"><span class="material-symbols-outlined text-sm">smart_display</span>Video</button></div></div><div class="flex items-center gap-space-xs"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface"><div class="flex flex-col w-full text-on-surface select-none pb-space-lg">
+
+<div class="px-space-md mt-space-xs flex flex-col items-center">
+<div class="relative w-full max-w-[340px] aspect-square flex items-center justify-center">
+<div class="absolute inset-4 rounded-3xl bg-gradient-to-tr from-primary-container/30 via-transparent to-secondary-container/35 blur-2xl transform scale-105 pointer-events-none"></div>
+<div class="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl bg-surface-container-highest">
+<img alt="Night Drive Synthwave Cyberpunk Album Artwork" class="w-full h-full object-cover select-none pointer-events-none" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5zwGgj8lBm3cSSQJKSQl-qnbcrxta-e_BtJYOWsm8JhVu0t0axiGyIc0bd6jXxsNE4KIxVH6x5SMHoPuNwPToHRKZwdd6NHboQDorSST36QZRpP20NGxgKMYmRmhI9c22FOqNQ7KDBBAJ4waKGgy6ku-yx7P8P7_viKgmRMR02Zd2lPz0DJBFnPVJg9DR2DNCb0w0-7GZEOPmg0kIEkMN6x-AkXBmxSpuZ1LpgJk">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent pointer-events-none"></div>
+<div class="absolute top-3 left-3 bg-surface-container-lowest/70 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-secondary tracking-widest uppercase">Lossless Hi-Res</span>
+</div>
+</div>
+</div>
+<div class="w-full max-w-[340px] h-6 mt-space-sm flex items-end justify-center gap-1 px-4">
+<div class="w-1 bg-secondary-container rounded-full h-2 animate-[pulse_1s_infinite]"></div>
+<div class="w-1 bg-secondary-container rounded-full h-4 animate-[pulse_0.8s_infinite]"></div>
+<div class="w-1 bg-primary-container rounded-full h-6 animate-[pulse_1.2s_infinite]"></div>
+<div class="w-1 bg-primary-container rounded-full h-3 animate-[pulse_0.7s_infinite]"></div>
+<div class="w-1 bg-secondary rounded-full h-5 animate-[pulse_1.1s_infinite]"></div>
+<div class="w-1 bg-secondary rounded-full h-2 animate-[pulse_0.9s_infinite]"></div>
+<div class="w-1 bg-primary rounded-full h-4 animate-[pulse_1s_infinite]"></div>
+<div class="w-1 bg-primary-container rounded-full h-6 animate-[pulse_1.3s_infinite]"></div>
+<div class="w-1 bg-secondary-container rounded-full h-3 animate-[pulse_0.6s_infinite]"></div>
+<div class="w-1 bg-secondary-container rounded-full h-5 animate-[pulse_1.4s_infinite]"></div>
+<div class="w-1 bg-secondary rounded-full h-2 animate-[pulse_0.8s_infinite]"></div>
+</div>
+</div>
+<div class="px-space-md mt-space-sm flex items-center justify-between">
+<div class="min-w-0 pr-space-sm">
+<h2 class="font-title-lg text-title-lg text-on-surface font-bold tracking-tight truncate leading-tight">
+        Midnight Horizon
+      </h2>
+<div class="flex items-center gap-2 mt-1 truncate">
+<span class="font-body-md text-body-md text-on-surface-variant truncate">
+          Kavinsky x DriveFlow Originals
+        </span>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded bg-primary-container/20 text-primary font-label-sm text-label-sm">
+          MASTER
+        </span>
+</div>
+</div>
+<button aria-label="Add to favorites" class="w-14 h-14 min-h-[56px] min-w-[56px] rounded-full flex items-center justify-center text-primary-container hover:bg-surface-container active:scale-90 transition-transform" id="favorite-toggle">
+<span class="material-symbols-outlined text-[32px]" id="favorite-icon" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+</div>
+<div class="px-space-md mt-space-md">
+<div class="relative w-full py-3 flex items-center group cursor-pointer" id="scrubber-track">
+<div class="w-full h-2 bg-surface-container-high rounded-full overflow-hidden relative">
+<div class="h-full bg-gradient-to-r from-primary-container to-secondary-container w-[46%] rounded-full" id="progress-bar"></div>
+</div>
+<div class="absolute left-[46%] -translate-x-1/2 w-5 h-5 bg-on-surface rounded-full shadow-lg shadow-primary-container/50 scale-100 group-hover:scale-125 transition-transform flex items-center justify-center pointer-events-none" id="progress-thumb">
+<div class="w-2 h-2 rounded-full bg-primary-container"></div>
+</div>
+</div>
+<div class="flex justify-between items-center px-0.5 -mt-1 font-label-sm text-label-sm text-on-surface-variant">
+<span id="time-current">01:45</span>
+<span id="time-remaining">-02:05</span>
+</div>
+</div>
+<div class="px-space-xs mt-space-md flex items-center justify-between">
+<button aria-label="Shuffle" class="w-14 h-14 min-h-[56px] min-w-[56px] rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[28px]">shuffle</span>
+</button>
+<button aria-label="Previous track" class="relative w-14 h-14 min-h-[56px] min-w-[56px] rounded-full flex items-center justify-center text-on-surface hover:text-secondary-fixed active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[34px]">skip_previous</span>
+</button>
+<button aria-label="Pause" class="w-20 h-20 min-h-[80px] min-w-[80px] rounded-full bg-gradient-to-br from-primary-container to-primary flex items-center justify-center text-on-primary-container shadow-xl active:scale-95 transition-transform" id="play-pause-btn">
+<span class="material-symbols-outlined text-[44px]" id="play-pause-icon" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button aria-label="Next track" class="relative w-14 h-14 min-h-[56px] min-w-[56px] rounded-full flex items-center justify-center text-on-surface hover:text-secondary-fixed active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[34px]">skip_next</span>
+</button>
+<button aria-label="Repeat mode" class="w-14 h-14 min-h-[56px] min-w-[56px] rounded-full flex flex-col items-center justify-center text-secondary-container hover:text-secondary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[28px]">repeat</span>
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container mt-0.5"></span>
+</button>
+</div>
+<div class="px-space-md mt-space-lg">
+<div class="bg-surface-container rounded-2xl p-space-sm shadow-md flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0 pr-space-xs"><div class="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center shrink-0 border border-outline-variant/20"><span class="material-symbols-outlined text-secondary text-[22px]">queue_music</span></div><div class="truncate"><p class="font-title-md text-body-md font-semibold text-on-surface truncate leading-tight">Road Trip Cybermix</p><p class="font-body-sm text-label-sm text-on-surface-variant truncate mt-0.5">14 bài hát • 1 giờ 45 phút</p></div></div><div class="flex items-center shrink-0"></div></div>
+</div>
+<div class="px-space-md mt-space-md">
+<div class="bg-surface-container-low rounded-2xl p-space-md flex items-center justify-around gap-2">
+<button class="flex flex-col items-center justify-center min-w-[56px] min-h-[56px] text-on-surface-variant hover:text-on-surface active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[24px]">speed</span>
+<span class="font-label-sm text-label-sm mt-1">1.0x</span>
+</button>
+<button class="flex flex-col items-center justify-center min-w-[56px] min-h-[56px] text-on-surface-variant hover:text-on-surface active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[24px]">graphic_eq</span>
+<span class="font-label-sm text-label-sm mt-1">Bass Boost</span>
+</button>
+<button class="flex flex-col items-center justify-center min-w-[56px] min-h-[56px] text-on-surface-variant hover:text-on-surface active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[24px]">bedtime</span>
+<span class="font-label-sm text-label-sm mt-1">Timer</span>
+</button>
+<button class="flex flex-col items-center justify-center min-w-[56px] min-h-[56px] text-on-surface-variant hover:text-on-surface active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[24px]">spatial_audio_off</span>
+<span class="font-label-sm text-label-sm mt-1">Dolby</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  (() => {
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const playPauseIcon = document.getElementById('play-pause-icon');
+    let isPlaying = true;
+
+    if (playPauseBtn && playPauseIcon) {
+      playPauseBtn.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        playPauseIcon.textContent = isPlaying ? 'pause' : 'play_arrow';
+      });
+    }
+
+    const favBtn = document.getElementById('favorite-toggle');
+    const favIcon = document.getElementById('favorite-icon');
+    let isFav = true;
+
+    if (favBtn && favIcon) {
+      favBtn.addEventListener('click', () => {
+        isFav = !isFav;
+        favIcon.style.fontVariationSettings = isFav ? "'FILL' 1" : "'FILL' 0";
+        favBtn.classList.toggle('text-primary-container', isFav);
+        favBtn.classList.toggle('text-on-surface-variant', !isFav);
+      });
+    }
+
+    const audioBtn = document.getElementById('mode-audio');
+    const videoBtn = document.getElementById('mode-video');
+
+    if (audioBtn && videoBtn) {
+      audioBtn.addEventListener('click', () => {
+        audioBtn.className = "flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-full bg-surface-bright text-on-surface shadow-sm font-label-md text-label-md transition-all";
+        videoBtn.className = "flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all";
+      });
+
+      videoBtn.addEventListener('click', () => {
+        videoBtn.className = "flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-full bg-surface-bright text-on-surface shadow-sm font-label-md text-label-md transition-all";
+        audioBtn.className = "flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all";
+      });
+    }
+
+    const track = document.getElementById('scrubber-track');
+    const progressBar = document.getElementById('progress-bar');
+    const progressThumb = document.getElementById('progress-thumb');
+    const currentTimeEl = document.getElementById('time-current');
+
+    if (track && progressBar && progressThumb && currentTimeEl) {
+      track.addEventListener('click', (e) => {
+        const rect = track.getBoundingClientRect();
+        const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+        const percentage = Math.round((clickX / rect.width) * 100);
+        
+        progressBar.style.width = percentage + '%';
+        progressThumb.style.left = percentage + '%';
+
+        const totalSeconds = 230;
+        const currentSec = Math.floor((percentage / 100) * totalSeconds);
+        const mins = String(Math.floor(currentSec / 60)).padStart(2, '0');
+        const secs = String(currentSec % 60).padStart(2, '0');
+        currentTimeEl.textContent = `${mins}:${secs}`;
+      });
+    }
+  })();
+</script></main>
+
+</body></html>

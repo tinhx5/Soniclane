@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "note": "Standalone test configuration file (NOT bundled in pubspec.yaml assets). Upload to your server and paste the .json URL, or copy this JSON directly into Settings -> Custom Media Server URL.",
+  "servers": [
+    "https://yewtu.be",
+    "https://inv.nadeko.net",
+    "https://invidious.nerdvpn.de",
+    "https://inv.tux.pizza",
+    "https://pipedapi.kavin.rocks",
+    "https://api.piped.privacy.com.de"
+  ]
+}
