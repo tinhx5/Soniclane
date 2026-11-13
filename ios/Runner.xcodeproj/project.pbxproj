@@ -177,6 +177,7 @@
 					};
 					97C146ED1CF9000F007C117D = {
 						CreatedOnToolsVersion = 7.3.1;
+						DevelopmentTeam = X6PW2HJHM2;
 						LastSwiftMigration = 1100;
 					};
 				};
@@ -368,6 +369,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				DEVELOPMENT_TEAM = X6PW2HJHM2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.soniclane.app.soniclane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -547,6 +549,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				DEVELOPMENT_TEAM = X6PW2HJHM2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.soniclane.app.soniclane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -569,6 +572,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				DEVELOPMENT_TEAM = X6PW2HJHM2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.soniclane.app.soniclane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";

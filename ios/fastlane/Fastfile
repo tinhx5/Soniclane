@@ -3,10 +3,13 @@ default_platform(:ios)
 platform :ios do
   desc "Push a new build to TestFlight"
   lane :beta do
+    raw_key = ENV["APP_STORE_CONNECT_PRIVATE_KEY"] || ""
+    formatted_key = raw_key.include?("\\n") ? raw_key.gsub("\\n", "\n") : raw_key
+
     api_key = app_store_connect_api_key(
       key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
       issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
-      key_content: ENV["APP_STORE_CONNECT_PRIVATE_KEY"],
+      key_content: formatted_key,
       is_key_content_base64: false,
       in_house: false
     )
