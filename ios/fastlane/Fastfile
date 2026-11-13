@@ -47,7 +47,14 @@ platform :ios do
     build_app(
       workspace: "Runner.xcworkspace",
       scheme: "Runner",
-      export_method: "app-store"
+      export_method: "app-store",
+      xcargs: "-allowProvisioningUpdates",
+      export_options: {
+        signingStyle: "manual",
+        provisioningProfiles: {
+          "com.soniclane.app.soniclane" => "com.soniclane.app.soniclane AppStore"
+        }
+      }
     )
 
     # Upload to App Store Connect TestFlight

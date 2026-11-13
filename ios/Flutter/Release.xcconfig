@@ -1,1 +1,5 @@
 #include "Generated.xcconfig"
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Apple Distribution
+DEVELOPMENT_TEAM = X6PW2HJHM2
+PROVISIONING_PROFILE_SPECIFIER = com.soniclane.app.soniclane AppStore
