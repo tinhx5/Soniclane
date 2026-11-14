@@ -409,7 +409,8 @@ class SonicAudioEngine {
           config: const AudioServiceConfig(
             androidNotificationChannelId: 'com.soniclane.app.channel.audio',
             androidNotificationChannelName: 'Soniclane Cockpit Audio',
-            androidNotificationOngoing: true,
+            androidNotificationOngoing: false,
+            androidStopForegroundOnPause: true,
           ),
         );
       } catch (e) {
@@ -1196,11 +1197,18 @@ class SonicAudioEngine {
         '${bundle?.resolvedByTier ?? "null"} in ${sw.elapsedMilliseconds}ms',
       );
       if (gen != _openGeneration) return;
-      if (bundle != null &&
-          bundle.track.videoStreamUrl != null &&
-          bundle.track.videoStreamUrl!.isNotEmpty) {
+      if (bundle != null) {
         _lastResolvedServerUrl = bundle.serverUrl;
+        final resolvedVideo = (bundle.track.videoStreamUrl != null &&
+                bundle.track.videoStreamUrl!.isNotEmpty)
+            ? bundle.track.videoStreamUrl
+            : (bundle.track.streamUrl != null &&
+                    (bundle.track.streamUrl!.contains('.mp4') ||
+                        bundle.track.streamUrl!.contains('video/')))
+                ? bundle.track.streamUrl
+                : null;
         track = bundle.track.copyWith(
+          videoStreamUrl: resolvedVideo ?? bundle.track.videoStreamUrl,
           lastPositionMs: track.lastPositionMs,
           playCount: track.playCount,
         );

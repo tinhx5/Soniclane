@@ -638,7 +638,7 @@ class DatabaseService {
       drivingVideoLockout: prefs.getBool('driving_video_lockout') ?? false,
       autoFlowHabits: prefs.getBool('auto_flow_habits') ?? true,
       wifiServerEnabled: prefs.getBool('wifi_server_enabled') ?? false,
-      isPro: prefs.getBool('is_pro') ?? false,
+      isPro: prefs.getBool('is_pro') ?? true,
     );
   }
 

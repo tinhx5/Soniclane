@@ -498,7 +498,7 @@ class AppSettings {
     this.drivingVideoLockout = false,
     this.autoFlowHabits = true,
     this.wifiServerEnabled = false,
-    this.isPro = false,
+    this.isPro = true,
   });
 
   AppSettings copyWith({

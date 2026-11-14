@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/sonic_providers.dart';
 import '../../core/theme/sonic_tokens.dart';
 import '../library/library_screen.dart';
-import '../overlays/pro_profile_modal.dart';
 import '../settings/settings_screen.dart';
 
 /// Unified Personal Hub for mobile portrait mode:
@@ -14,7 +13,6 @@ class UserHubScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
     final subTab = ref.watch(userHubSubTabProvider);
 
     return Column(
@@ -24,63 +22,51 @@ class UserHubScreen extends ConsumerWidget {
           child: Column(
             children: [
               // Driver Profile Card
-              InkWell(
-                onTap: () => DriverProfileProModal.show(context),
-                borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: SonicTokens.surfaceCard,
-                    borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-                    border: Border.all(
-                      color: settings.isPro
-                          ? SonicTokens.warningAmber.withOpacity(0.55)
-                          : SonicTokens.glassBorder,
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: SonicTokens.surfaceCard,
+                  borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+                  border: Border.all(
+                    color: SonicTokens.glassBorder,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 22,
+                      backgroundColor: SonicTokens.primaryContainer,
+                      child: Text(
+                        'SL',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: SonicTokens.primaryContainer,
-                        child: Text(
-                          settings.isPro ? 'PRO' : 'SL',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            fontSize: 13,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Driver Cockpit',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                        ),
+                          Text(
+                            'Soniclane Cockpit • Free Edition (All Unlocked)',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: SonicTokens.secondaryContainer,
+                                ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Driver Cockpit',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            Text(
-                              settings.isPro
-                                  ? 'Soniclane Pro Active • Ad-Free & EQ'
-                                  : 'Free Edition • Tap to view Pro',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: settings.isPro
-                                        ? SonicTokens.warningAmber
-                                        : SonicTokens.textSecondary,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right_rounded,
-                          color: SonicTokens.textSecondary),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 10),

@@ -246,8 +246,8 @@ void main() {
         expect(find.text('In-App Web Browser'), findsOneWidget);
         expect(find.text('Auto-Select Fastest Server Mirror'), findsOneWidget);
 
-        // Verify Ping Test and Auto-Select Mirror are interactive even with empty input
-        await tester.tap(find.text('Ping Test'));
+        // Verify Check Connection and Auto-Select Mirror are interactive even with empty input
+        await tester.tap(find.text('Check Connection'));
         await tester.pump();
         await Future.delayed(const Duration(milliseconds: 100));
         await tester.pump();

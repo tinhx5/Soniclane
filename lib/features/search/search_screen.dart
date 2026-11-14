@@ -5,7 +5,6 @@ import '../../core/providers/sonic_providers.dart';
 import '../../core/services/stream_resolver.dart';
 import '../../core/services/voice_search_service.dart';
 import '../../core/theme/sonic_tokens.dart';
-import '../../core/utils/app_locale.dart';
 import '../../shared/widgets/common_badges.dart';
 import '../../shared/widgets/playback_launcher.dart';
 import '../browser/web_browser_screen.dart';
@@ -22,6 +21,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _searchCtrl = TextEditingController();
   final _searchFocusNode = FocusNode();
   final _scrollCtrl = ScrollController();
+  bool _showBackToTop = false;
 
   @override
   void initState() {
@@ -32,9 +32,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _onScroll() {
     if (!_scrollCtrl.hasClients) return;
     final pos = _scrollCtrl.position;
+    final shouldShow = pos.pixels > 350;
+    if (shouldShow != _showBackToTop && mounted) {
+      setState(() => _showBackToTop = shouldShow);
+    }
     if (pos.pixels >= pos.maxScrollExtent - 320) {
       ref.read(searchProvider.notifier).loadMore();
     }
+  }
+
+  void _scrollToTopAndFocus() {
+    if (_scrollCtrl.hasClients && _scrollCtrl.offset > 0) {
+      _scrollCtrl.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    _searchFocusNode.requestFocus();
   }
 
   static const _sourceFilters = [
@@ -98,7 +113,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     ref.listen<int>(searchFocusTriggerProvider, (prev, next) {
       if (prev != next && mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _searchFocusNode.requestFocus();
+          if (mounted) _scrollToTopAndFocus();
         });
       }
     });
@@ -106,7 +121,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 700;
-        return ListView(
+        return Stack(
+          children: [
+            ListView(
           controller: _scrollCtrl,
           padding: EdgeInsets.fromLTRB(
             isWide ? 24 : 16,
@@ -453,42 +470,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      subtitle: Row(
-                        children: [
-                          if (track.recommendationTag == '⭐ Kênh theo dõi') ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              margin: const EdgeInsets.only(right: 6),
-                              decoration: BoxDecoration(
-                                color: SonicTokens.primaryRed.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: SonicTokens.primaryRed.withOpacity(0.5),
-                                  width: 0.8,
-                                ),
-                              ),
-                              child: Text(
-                                AppLocale.followedBadge(context),
-                                style: const TextStyle(
-                                  color: SonicTokens.primaryTint,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                          Flexible(
-                            child: Text(
-                              track.durationSeconds > 0
-                                  ? '${track.artist} • ${track.formattedDuration}'
-                                  : track.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                        ],
+                      subtitle: Text(
+                        track.durationSeconds > 0
+                            ? '${track.artist} • ${track.formattedDuration}'
+                            : track.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                       trailing: IconButton(
                         tooltip: 'Add to Playlist',
@@ -764,7 +752,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ],
           ],
-        );
+        ),
+        if (_showBackToTop)
+          Positioned(
+            right: isWide ? 32 : 18,
+            bottom: 116,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _scrollToTopAndFocus,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: SonicTokens.surfaceHigh.withOpacity(0.94),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: SonicTokens.secondaryContainer.withOpacity(0.5),
+                    ),
+                    boxShadow: SonicTokens.cyanGlow(opacity: 0.25),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.arrow_upward_rounded,
+                          size: 18, color: SonicTokens.secondaryContainer),
+                      SizedBox(width: 6),
+                      Text(
+                        'Search',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
       },
     );
   }

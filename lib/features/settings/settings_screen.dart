@@ -8,7 +8,6 @@ import '../../core/services/stream_resolver.dart';
 import '../../core/theme/sonic_tokens.dart';
 import '../browser/web_browser_screen.dart';
 import '../overlays/equalizer_modal.dart';
-import '../overlays/pro_profile_modal.dart';
 import '../overlays/wifi_transfer_modal.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -42,12 +41,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     setState(() => _testingLatency = false);
     final healthyCount = measured.where((e) => e.isHealthy).length;
+    final isConnected = healthyCount > 0;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        backgroundColor:
+            isConnected ? SonicTokens.surfaceCard : SonicTokens.warningAmber,
         content: Text(
-          measured.isEmpty
-              ? 'No active servers or default JSON mirrors found'
-              : 'Synced ${measured.length} endpoints ($healthyCount ready)',
+          isConnected
+              ? 'Connected'
+              : 'Connection failed. Please check internet or server.',
+          style: TextStyle(
+            color: isConnected ? Colors.white : Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -143,7 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text('Cockpit Settings',
                 style: Theme.of(context).textTheme.headlineMedium),
             InkWell(
-              onTap: () => DriverProfileProModal.show(context),
+              onTap: null,
               borderRadius: BorderRadius.circular(999),
               child: Container(
                 padding:
@@ -171,7 +177,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      settings.isPro ? 'Pro Activated' : 'Upgrade Pro',
+                      'All Features Free',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
@@ -270,40 +276,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () => WebBrowserScreen.open(context),
             ),
             ListTile(
-              title: Text(
-                primaryInstance != null
-                    ? 'Active Server: ${primaryInstance.name}'
-                    : 'Custom Media Server: Not Configured',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+              title: const Text(
+                'Media Server Connection',
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               subtitle: Text(
                 () {
-                  final total = instances.length;
-                  final healthy = instances.where((e) => e.isHealthy).length;
-                  final poolSuffix = total > 1
-                      ? ' • $healthy/$total mirrors ready'
-                      : '';
+                  if (_testingLatency) {
+                    return 'Connecting...';
+                  }
                   if (primaryInstance == null) {
-                    return 'Optional: enter a JSON Media API domain or URL below (auto-adds https://).';
+                    return 'Not Configured';
                   }
                   if (primaryInstance.isHealthy) {
-                    return '🟢 ${primaryInstance.tier} • ${primaryInstance.latencyMs ?? 0}ms$poolSuffix';
+                    return 'Connected';
                   }
-                  if (primaryInstance.tier == 'HTML Website') {
-                    return '🟠 ${primaryInstance.name} returned an HTML website, not a compatible JSON Media API. Open websites in In-App Web Browser below.$poolSuffix';
-                  }
-                  if (primaryInstance.latencyMs != null) {
-                    return '🔴 ${primaryInstance.tier} on ${primaryInstance.name}$poolSuffix';
-                  }
-                  return '🔵 Configured • Tap Ping Test to verify API$poolSuffix';
+                  return 'Connection failed (Server offline or unreachable)';
                 }(),
                 style: TextStyle(
-                  color: primaryInstance == null
-                      ? SonicTokens.textSecondary
-                      : (primaryInstance.isHealthy
-                          ? SonicTokens.successGreen
-                          : (primaryInstance.latencyMs == null
-                              ? SonicTokens.secondaryLight
+                  fontWeight: FontWeight.w600,
+                  color: _testingLatency
+                      ? SonicTokens.secondaryContainer
+                      : (primaryInstance == null
+                          ? SonicTokens.textSecondary
+                          : (primaryInstance.isHealthy
+                              ? SonicTokens.successGreen
                               : SonicTokens.warningAmber)),
                 ),
               ),
@@ -321,8 +318,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           height: 14,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.bolt_rounded, size: 18),
-                  label: const Text('Ping Test'),
+                      : const Icon(Icons.sync_rounded, size: 18),
+                  label: Text(_testingLatency ? 'Connecting...' : 'Check Connection'),
                 ),
               ),
             ),

@@ -42,8 +42,33 @@ Future<void> main() async {
   runApp(const ProviderScope(child: SoniclaneApp()));
 }
 
-class SoniclaneApp extends StatelessWidget {
+class SoniclaneApp extends StatefulWidget {
   const SoniclaneApp({super.key});
+
+  @override
+  State<SoniclaneApp> createState() => _SoniclaneAppState();
+}
+
+class _SoniclaneAppState extends State<SoniclaneApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      SonicAudioEngine.instance.stop();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

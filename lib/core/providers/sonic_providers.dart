@@ -8,7 +8,6 @@ import '../services/sonic_audio_engine.dart';
 import '../services/storage_scanner.dart';
 import '../services/stream_resolver.dart';
 import '../services/wifi_transfer_server.dart';
-import '../utils/app_locale.dart';
 import '../utils/url_parser.dart';
 
 // --- Navigation Tab Index (0: Home, 1: Search, 2: Library / Mobile User, 3: Settings) ---
@@ -190,21 +189,14 @@ class HomeFeedNotifier extends StateNotifier<HomeFeedState> {
         .toSet();
 
     // 70% Habit / Related + 30% Trending Blended Interleaving
-    final tag = AppLocale.followedCategory();
     final habitSamples = history.map((t) {
-      final isFollowed = followedNames.contains(t.artist.toLowerCase().trim());
       return t.copyWith(
-        recommendationTag: isFollowed
-            ? tag
-            : 'Based on your recent listening',
+        recommendationTag: 'Based on your recent listening',
       );
     });
     final blended = <MediaTrack>[];
     final habitList = habitSamples.toList();
-    final trendList = trending.map((t) {
-      final isFollowed = followedNames.contains(t.artist.toLowerCase().trim());
-      return isFollowed ? t.copyWith(recommendationTag: tag) : t;
-    }).toList();
+    final trendList = trending.toList();
 
     // Prioritize tracks from followed channels at the front of the feed
     final followedPrioritized = <MediaTrack>[];
@@ -240,13 +232,9 @@ class HomeFeedNotifier extends StateNotifier<HomeFeedState> {
       }
     }
 
-    // Add scanned offline tracks with badge
+    // Add scanned offline tracks
     for (final local in localUsb) {
-      final isFollowed =
-          followedNames.contains(local.artist.toLowerCase().trim());
-      blended.add(isFollowed
-          ? local.copyWith(recommendationTag: tag)
-          : local);
+      blended.add(local);
     }
 
     state = state.copyWith(
@@ -576,8 +564,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
     final otherResults = <MediaTrack>[];
     for (final t in allRaw) {
       if (followedNames.contains(t.artist.toLowerCase().trim())) {
-        prioritizedFollowed
-            .add(t.copyWith(recommendationTag: AppLocale.followedCategory()));
+        prioritizedFollowed.add(t);
       } else {
         otherResults.add(t);
       }
@@ -612,18 +599,9 @@ class SearchNotifier extends StateNotifier<SearchState> {
     );
     if (!mounted) return;
 
-    final followed = await DatabaseService.instance.getFollowedChannels();
-    final followedNames = followed
-        .map((c) => c.channelName.toLowerCase().trim())
-        .where((n) => n.isNotEmpty)
-        .toSet();
-
     final existingIds = state.results.map((e) => e.id).toSet();
     final uniqueNew = page.tracks
         .where((t) => !existingIds.contains(t.id))
-        .map((t) => followedNames.contains(t.artist.toLowerCase().trim())
-            ? t.copyWith(recommendationTag: AppLocale.followedCategory())
-            : t)
         .toList();
 
     state = state.copyWith(

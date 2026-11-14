@@ -104,6 +104,11 @@ class RecommendationTagBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (tag.contains('Followed') ||
+        tag.contains('theo dõi') ||
+        tag.startsWith('⭐')) {
+      return const SizedBox.shrink();
+    }
     final isTrending = tag.toUpperCase().contains('TRENDING');
     final isUsb = tag.toUpperCase().contains('USB');
     final bg = isTrending

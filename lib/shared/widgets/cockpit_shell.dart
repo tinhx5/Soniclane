@@ -9,7 +9,6 @@ import '../../core/theme/sonic_tokens.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/library/library_screen.dart';
 import '../../features/now_playing/now_playing_screen.dart';
-import '../../features/overlays/pro_profile_modal.dart';
 import '../../features/search/search_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/user/user_hub_screen.dart';
@@ -60,20 +59,31 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
       SettingsScreen(),
     ];
 
-    // Support Windows Desktop & Keyboard media transport shortcuts
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () =>
-            SonicAudioEngine.instance.togglePlayPause(),
-        const SingleActivator(LogicalKeyboardKey.mediaTrackNext): () =>
-            SonicAudioEngine.instance.skipToNext(),
-        const SingleActivator(LogicalKeyboardKey.mediaTrackPrevious): () =>
-            SonicAudioEngine.instance.skipToPrevious(),
+    // Support Android Back navigation + Windows Desktop media transport shortcuts
+    return PopScope(
+      canPop: activeTab == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          SonicAudioEngine.instance.stop();
+          return;
+        }
+        if (activeTab != 0) {
+          ref.read(activeTabProvider.notifier).state = 0;
+        }
       },
-      child: Focus(
-        autofocus: true,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () =>
+              SonicAudioEngine.instance.togglePlayPause(),
+          const SingleActivator(LogicalKeyboardKey.mediaTrackNext): () =>
+              SonicAudioEngine.instance.skipToNext(),
+          const SingleActivator(LogicalKeyboardKey.mediaTrackPrevious): () =>
+              SonicAudioEngine.instance.skipToPrevious(),
+        },
+        child: Focus(
+          autofocus: true,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
             final isDesktopOrTablet = constraints.maxWidth >= 700;
 
             if (isDesktopOrTablet) {
@@ -83,8 +93,12 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                   children: [
                     _LeftCockpitRail(
                       activeIndex: activeTab,
-                      onSelect: (i) =>
-                          ref.read(activeTabProvider.notifier).state = i,
+                      onSelect: (i) {
+                        ref.read(activeTabProvider.notifier).state = i;
+                        if (i == 1) {
+                          ref.read(searchFocusTriggerProvider.notifier).state++;
+                        }
+                      },
                     ),
                     Expanded(
                       child: Stack(
@@ -109,7 +123,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                     .read(activeTabProvider.notifier)
                                     .state = 3,
                                 onProfile: () =>
-                                    DriverProfileProModal.show(context),
+                                    ref.read(activeTabProvider.notifier).state = 2,
                               ),
                               Expanded(
                                 child: IndexedStack(
@@ -225,6 +239,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
             );
           },
         ),
+      ),
       ),
     );
   }

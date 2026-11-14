@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +36,8 @@ class NowPlayingScreen extends ConsumerStatefulWidget {
 
 class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   int _rightQueueTab = 0; // 0: PLAYLIST, 1: HABIT AI
+  bool _isFullscreenOpen = false;
+  bool _userDismissedFullscreenInLandscape = false;
 
   Future<void> _onToggleVideoMode(bool wantVideo, PlaybackSnapshot snap) async {
     if (wantVideo == snap.isVideoMode) return;
@@ -63,6 +68,39 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         SonicAudioEngine.instance.snapshot;
     final settings = ref.watch(settingsProvider);
     final track = snap.currentTrack;
+
+    final orientation = MediaQuery.orientationOf(context);
+    final isMobile = !kIsWeb &&
+        (Platform.isAndroid || Platform.isIOS) &&
+        MediaQuery.sizeOf(context).shortestSide < 600;
+
+    if (orientation == Orientation.portrait) {
+      _userDismissedFullscreenInLandscape = false;
+    }
+
+    // Auto-fullscreen when phone device rotates to landscape while in Video mode
+    if (isMobile &&
+        snap.isVideoMode &&
+        orientation == Orientation.landscape &&
+        !_isFullscreenOpen &&
+        !_userDismissedFullscreenInLandscape) {
+      final vc = SonicAudioEngine.instance.videoController;
+      if (vc != null) {
+        _isFullscreenOpen = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          await _FullscreenVideoPage.open(context, vc);
+          if (mounted) {
+            setState(() {
+              _isFullscreenOpen = false;
+              if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+                _userDismissedFullscreenInLandscape = true;
+              }
+            });
+          }
+        });
+      }
+    }
 
     return Scaffold(
       backgroundColor: SonicTokens.surfaceBase,
@@ -593,7 +631,7 @@ class _MediaStageBox extends StatelessWidget {
   }
 }
 
-class _FullscreenVideoPage extends StatefulWidget {
+class _FullscreenVideoPage extends ConsumerStatefulWidget {
   final VideoController controller;
   const _FullscreenVideoPage({required this.controller});
 
@@ -607,10 +645,14 @@ class _FullscreenVideoPage extends StatefulWidget {
   }
 
   @override
-  State<_FullscreenVideoPage> createState() => _FullscreenVideoPageState();
+  ConsumerState<_FullscreenVideoPage> createState() =>
+      _FullscreenVideoPageState();
 }
 
-class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
+class _FullscreenVideoPageState extends ConsumerState<_FullscreenVideoPage> {
+  bool _showControls = true;
+  Timer? _hideTimer;
+
   @override
   void initState() {
     super.initState();
@@ -619,10 +661,22 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    // After transition into landscape, allow sensor to detect portrait rotation
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
+    });
+    _startHideTimer();
   }
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -632,46 +686,416 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
     super.dispose();
   }
 
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(milliseconds: 3500), () {
+      if (mounted) {
+        setState(() => _showControls = false);
+      }
+    });
+  }
+
+  void _toggleControls() {
+    setState(() {
+      _showControls = !_showControls;
+      if (_showControls) {
+        _startHideTimer();
+      } else {
+        _hideTimer?.cancel();
+      }
+    });
+  }
+
+  void _onUserInteraction() {
+    if (!_showControls) {
+      setState(() => _showControls = true);
+    }
+    _startHideTimer();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final orientation = MediaQuery.orientationOf(context);
+    final isMobile = !kIsWeb &&
+        (Platform.isAndroid || Platform.isIOS) &&
+        MediaQuery.sizeOf(context).shortestSide < 600;
+
+    // Auto-exit fullscreen when device rotates back to portrait
+    if (isMobile && orientation == Orientation.portrait) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      });
+    }
+
+    final snap = ref.watch(playbackSnapshotProvider).valueOrNull ??
+        SonicAudioEngine.instance.snapshot;
+    final track = snap.currentTrack;
+    final isPlaying = snap.isPlaying;
+    final position = snap.position;
+    final duration = snap.duration;
+
+    final posMs = position.inMilliseconds.toDouble();
+    final durMs = duration.inMilliseconds > 0
+        ? duration.inMilliseconds.toDouble()
+        : 1.0;
+    final clampedPos = posMs.clamp(0.0, durMs);
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Center(
-            child: Video(
-              controller: widget.controller,
-              controls: NoVideoControls,
-              pauseUponEnteringBackgroundMode: false,
-              wakelock: false,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggleControls,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Center Fullscreen Video
+            Center(
+              child: Video(
+                controller: widget.controller,
+                controls: NoVideoControls,
+                pauseUponEnteringBackgroundMode: false,
+                wakelock: false,
+              ),
             ),
-          ),
-          Positioned(
-            top: 16,
-            right: 16,
-            child: SafeArea(
-              child: InkWell(
-                onTap: () => Navigator.of(context).pop(),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.65),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Icon(
-                    Icons.fullscreen_exit_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+
+            // Animated Transparent Controls HUD
+            AnimatedOpacity(
+              opacity: _showControls ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 250),
+              child: IgnorePointer(
+                ignoring: !_showControls,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Top Bar: Exit Fullscreen button & Title
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.65),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: SafeArea(
+                          child: Row(
+                            children: [
+                              InkWell(
+                                onTap: () => Navigator.of(context).pop(),
+                                borderRadius: BorderRadius.circular(999),
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.4),
+                                    shape: BoxShape.circle,
+                                    border:
+                                        Border.all(color: Colors.white24),
+                                  ),
+                                  child: const Icon(
+                                    Icons.fullscreen_exit_rounded,
+                                    color: Colors.white,
+                                    size: 26,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      track?.title ?? 'Soniclane Video',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        shadows: [
+                                          Shadow(
+                                              color: Colors.black87,
+                                              blurRadius: 4),
+                                        ],
+                                      ),
+                                    ),
+                                    if (track?.artist != null &&
+                                        track!.artist.isNotEmpty)
+                                      Text(
+                                        track.artist,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.75),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          shadows: const [
+                                            Shadow(
+                                                color: Colors.black87,
+                                                blurRadius: 4),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Bottom Bar: Transparent Glass Controls Row (Doesn't obscure video)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.65),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Slider & Time Labels
+                                Row(
+                                  children: [
+                                    Text(
+                                      MediaTrack.formatSeconds(
+                                          position.inSeconds),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        shadows: [
+                                          Shadow(
+                                              color: Colors.black87,
+                                              blurRadius: 4),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: SliderTheme(
+                                        data: SliderTheme.of(context).copyWith(
+                                          trackHeight: 3,
+                                          thumbShape:
+                                              const RoundSliderThumbShape(
+                                            enabledThumbRadius: 6,
+                                          ),
+                                          overlayShape:
+                                              const RoundSliderOverlayShape(
+                                            overlayRadius: 14,
+                                          ),
+                                          activeTrackColor:
+                                              SonicTokens.secondaryContainer,
+                                          inactiveTrackColor:
+                                              Colors.white.withOpacity(0.24),
+                                          thumbColor: Colors.white,
+                                          overlayColor: SonicTokens
+                                              .secondaryContainer
+                                              .withOpacity(0.2),
+                                        ),
+                                        child: Slider(
+                                          value: clampedPos,
+                                          min: 0.0,
+                                          max: durMs,
+                                          onChanged: (v) {
+                                            _onUserInteraction();
+                                            SonicAudioEngine.instance.seekTo(
+                                              Duration(
+                                                  milliseconds: v.round()),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      MediaTrack.formatSeconds(
+                                          duration.inSeconds),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        shadows: [
+                                          Shadow(
+                                              color: Colors.black87,
+                                              blurRadius: 4),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                // Transparent Glass Controls Pill
+                                Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.35),
+                                      borderRadius:
+                                          BorderRadius.circular(999),
+                                      border: Border.all(
+                                          color:
+                                              Colors.white.withOpacity(0.18)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // 10s Replay
+                                        _FullscreenIconButton(
+                                          icon: Icons.replay_10_rounded,
+                                          size: 30,
+                                          tooltip: 'Replay 10s',
+                                          onTap: () {
+                                            _onUserInteraction();
+                                            SonicAudioEngine.instance
+                                                .seekRelative(
+                                              const Duration(seconds: -10),
+                                            );
+                                          },
+                                        ),
+                                        const SizedBox(width: 18),
+                                        // Previous Video
+                                        _FullscreenIconButton(
+                                          icon: Icons.skip_previous_rounded,
+                                          size: 34,
+                                          tooltip: 'Previous Video',
+                                          onTap: () {
+                                            _onUserInteraction();
+                                            SonicAudioEngine.instance
+                                                .skipToPrevious();
+                                          },
+                                        ),
+                                        const SizedBox(width: 18),
+                                        // Play / Pause
+                                        _FullscreenIconButton(
+                                          icon: isPlaying
+                                              ? Icons.pause_rounded
+                                              : Icons.play_arrow_rounded,
+                                          size: 42,
+                                          isPrimary: true,
+                                          tooltip:
+                                              isPlaying ? 'Pause' : 'Play',
+                                          onTap: () {
+                                            _onUserInteraction();
+                                            SonicAudioEngine.instance
+                                                .togglePlayPause();
+                                          },
+                                        ),
+                                        const SizedBox(width: 18),
+                                        // Next Video
+                                        _FullscreenIconButton(
+                                          icon: Icons.skip_next_rounded,
+                                          size: 34,
+                                          tooltip: 'Next Video',
+                                          onTap: () {
+                                            _onUserInteraction();
+                                            SonicAudioEngine.instance
+                                                .skipToNext();
+                                          },
+                                        ),
+                                        const SizedBox(width: 18),
+                                        // 10s Forward
+                                        _FullscreenIconButton(
+                                          icon: Icons.forward_10_rounded,
+                                          size: 30,
+                                          tooltip: 'Forward 10s',
+                                          onTap: () {
+                                            _onUserInteraction();
+                                            SonicAudioEngine.instance
+                                                .seekRelative(
+                                              const Duration(seconds: 10),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FullscreenIconButton extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final VoidCallback onTap;
+  final String tooltip;
+  final bool isPrimary;
+
+  const _FullscreenIconButton({
+    required this.icon,
+    required this.size,
+    required this.onTap,
+    required this.tooltip,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: isPrimary
+              ? BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 6,
+                    ),
+                  ],
+                )
+              : null,
+          child: Icon(
+            icon,
+            size: size,
+            color: Colors.white,
+            shadows: const [
+              Shadow(color: Colors.black87, blurRadius: 4),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

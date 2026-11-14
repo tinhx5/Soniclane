@@ -18,6 +18,8 @@ class ResolvedStreamBundle {
   });
 }
 
+enum _ProbeStatus { playable, rejected, timeout }
+
 /// User-configured Custom Media Server & Direct Stream URL Resolver (BYO Source).
 ///
 /// Soniclane ships with NO hardcoded third-party streaming servers or API pools.
@@ -44,7 +46,7 @@ class StreamResolver {
   /// Test-only flag to simulate zero network / no configured server in unit tests.
   static bool testOfflineMode = false;
 
-  static const Duration _probeTimeout = Duration(milliseconds: 2200);
+  static const Duration _probeTimeout = Duration(milliseconds: 4500);
   static const Duration _cacheTtl = Duration(minutes: 3);
 
   final Dio _dio = Dio(
@@ -434,10 +436,10 @@ class StreamResolver {
   }
 
   /// Probes whether a resolved media URL responds with playable media bytes (not 403/404/HTML).
-  Future<bool> _probeStreamPlayable(String url) async {
-    if (testOfflineMode) return true;
+  Future<_ProbeStatus> _probeStreamPlayable(String url) async {
+    if (testOfflineMode) return _ProbeStatus.playable;
     final trimmed = url.trim();
-    if (trimmed.isEmpty) return false;
+    if (trimmed.isEmpty) return _ProbeStatus.rejected;
     final cancelToken = CancelToken();
     try {
       final res = await _dio
@@ -447,7 +449,9 @@ class StreamResolver {
             options: Options(
               responseType: ResponseType.stream,
               receiveTimeout: _probeTimeout,
+              sendTimeout: _probeTimeout,
               followRedirects: true,
+              maxRedirects: 5,
               validateStatus: (s) => s != null && s < 500,
               headers: const {
                 'Range': 'bytes=0-1023',
@@ -459,14 +463,40 @@ class StreamResolver {
 
       final code = res.statusCode ?? 500;
       final ct = (res.headers.value('content-type') ?? '').toLowerCase();
-      final ok = (code == 200 || code == 206) &&
-          !ct.contains('text/html') &&
-          !ct.contains('application/xhtml');
+      if (code == 401 ||
+          code == 403 ||
+          code == 404 ||
+          code == 410 ||
+          ct.contains('text/html') ||
+          ct.contains('application/xhtml')) {
+        if (!cancelToken.isCancelled) cancelToken.cancel('probe_rejected');
+        return _ProbeStatus.rejected;
+      }
+      final ok = (code == 200 ||
+          code == 206 ||
+          code == 416 ||
+          (code >= 300 && code < 400));
       if (!cancelToken.isCancelled) cancelToken.cancel('probe_done');
-      return ok;
+      return ok ? _ProbeStatus.playable : _ProbeStatus.rejected;
+    } on TimeoutException {
+      if (!cancelToken.isCancelled) cancelToken.cancel('probe_timeout');
+      return _ProbeStatus.timeout;
+    } on DioException catch (de) {
+      if (!cancelToken.isCancelled) cancelToken.cancel('probe_dio_err');
+      if (de.type == DioExceptionType.connectionTimeout ||
+          de.type == DioExceptionType.receiveTimeout ||
+          de.type == DioExceptionType.sendTimeout) {
+        return _ProbeStatus.timeout;
+      }
+      final code = de.response?.statusCode;
+      if (code != null &&
+          (code == 401 || code == 403 || code == 404 || code == 410)) {
+        return _ProbeStatus.rejected;
+      }
+      return _ProbeStatus.timeout;
     } catch (_) {
       if (!cancelToken.isCancelled) cancelToken.cancel('probe_err');
-      return false;
+      return _ProbeStatus.timeout;
     }
   }
 
@@ -620,17 +650,38 @@ class StreamResolver {
     }
 
     final results = await Future.wait(probeUrls.map(_probeStreamPlayable));
-    final playableByUrl = <String, bool>{
+    final statusByUrl = <String, _ProbeStatus>{
       for (var i = 0; i < probeUrls.length; i++) probeUrls[i]: results[i],
     };
 
-    final verifiedAudio =
-        (audioUrl != null && playableByUrl[audioUrl] == true) ? audioUrl : null;
+    // Audio: Accept verified playable stream; if probe timed out (e.g. cellular latency),
+    // retain audioUrl so playback does not fail prematurely. If explicitly rejected (403/404),
+    // keep null to allow proxy fallback.
+    String? verifiedAudio;
+    if (audioUrl != null) {
+      final aStatus = statusByUrl[audioUrl];
+      if (aStatus == _ProbeStatus.playable || aStatus == _ProbeStatus.timeout) {
+        verifiedAudio = audioUrl;
+      }
+    }
+
     ({String? url, bool hasAudio}) pickedVideo = (url: null, hasAudio: false);
     for (final v in uniqueVideos) {
-      if (playableByUrl[v.url] == true) {
+      if (statusByUrl[v.url] == _ProbeStatus.playable) {
         pickedVideo = (url: v.url, hasAudio: v.hasAudio);
         break;
+      }
+    }
+
+    // Video Fallback: If no candidate was verified playable, check if any timed out (inconclusive).
+    // NEVER discard candidates that only timed out on mobile networks!
+    // But DO NOT pick candidates that were explicitly rejected (e.g. 403 Forbidden).
+    if (pickedVideo.url == null && uniqueVideos.isNotEmpty) {
+      for (final v in uniqueVideos) {
+        if (statusByUrl[v.url] == _ProbeStatus.timeout) {
+          pickedVideo = (url: v.url, hasAudio: v.hasAudio);
+          break;
+        }
       }
     }
     return (
@@ -694,13 +745,18 @@ class StreamResolver {
           videoCandidates.add((url: u, hasAudio: true));
         }
         if (includeVideo) {
-          final allMp4 = adaptive
+          final allVideos = adaptive
+              .where((f) => ((f['type'] as String?) ?? '').contains('video/'))
+              .toList();
+          final allMp4 = allVideos
               .where((f) => ((f['type'] as String?) ?? '').contains('video/mp4'))
               .toList();
           final h264 = allMp4
               .where((f) => ((f['type'] as String?) ?? '').contains('avc1'))
               .toList();
-          final adaptivePool = h264.isNotEmpty ? h264 : allMp4;
+          final adaptivePool = h264.isNotEmpty
+              ? h264
+              : (allMp4.isNotEmpty ? allMp4 : allVideos);
           for (final u in _orderedVideoUrls(
               inst.url, adaptivePool, preferredVideoQuality, 'qualityLabel')) {
             videoCandidates.add((url: u, hasAudio: false));
@@ -821,13 +877,14 @@ class StreamResolver {
           videoCandidates.add((url: u, hasAudio: true));
         }
         if (includeVideo) {
-          final h264Only = videoStreams
-              .whereType<Map>()
+          final allVideos = videoStreams.whereType<Map>().toList();
+          final mp4Only = allVideos
               .where((v) =>
                   ((v['mimeType'] as String?) ?? '').contains('video/mp4'))
               .toList();
+          final pool = mp4Only.isNotEmpty ? mp4Only : allVideos;
           for (final u in _orderedVideoUrls(
-              inst.url, h264Only, preferredVideoQuality, 'quality')) {
+              inst.url, pool, preferredVideoQuality, 'quality')) {
             videoCandidates.add((url: u, hasAudio: false));
           }
         }

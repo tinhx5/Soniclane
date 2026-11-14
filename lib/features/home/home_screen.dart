@@ -20,7 +20,6 @@ class HomeScreen extends ConsumerWidget {
 
   static List<String> _getFilters([BuildContext? context]) => [
     'All Blended',
-    AppLocale.followedCategory(context),
     '💾 In-Car USB',
     'Night Drives',
     'High-BPM Focus',
@@ -375,6 +374,13 @@ class _MobileResumeHeroCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    void onResume() => playTrackAndOpenMobile(
+      context,
+      ref,
+      track,
+      resumeAt: Duration(milliseconds: track.lastPositionMs),
+    );
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -385,147 +391,156 @@ class _MobileResumeHeroCard extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              Stack(
-                children: [
-                  TrackArtwork(
-                    url: track.thumbnailUrl,
-                    width: 88,
-                    height: 88,
-                    radius: SonicTokens.radiusLg,
-                  ),
-                  Positioned(
-                    bottom: 4,
-                    left: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: SonicTokens.surfaceBase.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'RESUME',
-                        style: TextStyle(
-                          color: SonicTokens.primaryTint,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // Tapping anywhere on the upper section immediately plays the track
+          InkWell(
+            onTap: onResume,
+            borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    Row(
+                    Stack(
                       children: [
-                        Expanded(
+                        TrackArtwork(
+                          url: track.thumbnailUrl,
+                          width: 88,
+                          height: 88,
+                          radius: SonicTokens.radiusLg,
+                        ),
+                        Positioned(
+                          bottom: 4,
+                          left: 4,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: SonicTokens.surfaceElevated,
-                              borderRadius: BorderRadius.circular(6),
+                              color: SonicTokens.surfaceBase.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.bolt_rounded,
-                                    size: 13,
-                                    color: SonicTokens.secondaryContainer),
-                                SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    'UNFINISHED SESSION',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: SonicTokens.secondaryLight,
-                                      letterSpacing: 0.6,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            child: const Text(
+                              'RESUME',
+                              style: TextStyle(
+                                color: SonicTokens.primaryTint,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                              minWidth: 28, minHeight: 28),
-                          icon: const Icon(Icons.close_rounded,
-                              size: 18, color: SonicTokens.textSecondary),
-                          onPressed: () => ref
-                              .read(resumeCardVisibleProvider.notifier)
-                              .state = false,
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: SonicTokens.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.bolt_rounded,
+                                          size: 13,
+                                          color: SonicTokens.secondaryContainer),
+                                      SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          'UNFINISHED SESSION',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: SonicTokens.secondaryLight,
+                                            letterSpacing: 0.6,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 28, minHeight: 28),
+                                icon: const Icon(Icons.close_rounded,
+                                    size: 18, color: SonicTokens.textSecondary),
+                                onPressed: () => ref
+                                    .read(resumeCardVisibleProvider.notifier)
+                                    .state = false,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          Text(
+                            '${track.artist} • ${track.qualityBadge}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.circle,
+                              size: 8, color: SonicTokens.primaryContainer),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Resumes at ${track.formattedResumePosition}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      '${track.artist} • ${track.qualityBadge}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      '${track.formattedDuration} total',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.circle,
-                        size: 8, color: SonicTokens.primaryContainer),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Resumes at ${track.formattedResumePosition}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: track.progressRatio,
+                    minHeight: 7,
+                    backgroundColor: SonicTokens.surfaceHighest,
+                    color: SonicTokens.primaryContainer,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${track.formattedDuration} total',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: track.progressRatio,
-              minHeight: 7,
-              backgroundColor: SonicTokens.surfaceHighest,
-              color: SonicTokens.primaryContainer,
+              ],
             ),
           ),
           const SizedBox(height: 14),
@@ -535,12 +550,7 @@ class _MobileResumeHeroCard extends ConsumerWidget {
                 child: SizedBox(
                   height: SonicTokens.minTouchTarget,
                   child: ElevatedButton.icon(
-                    onPressed: () => playTrackAndOpenMobile(
-                      context,
-                      ref,
-                      track,
-                      resumeAt: Duration(milliseconds: track.lastPositionMs),
-                    ),
+                    onPressed: onResume,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: SonicTokens.primaryContainer,
                       foregroundColor: Colors.white,
@@ -919,7 +929,10 @@ class _FeedMediaCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   TrackArtwork(url: track.thumbnailUrl, radius: 0),
-                  if (track.recommendationTag != null)
+                  if (track.recommendationTag != null &&
+                      !track.recommendationTag!.contains('Followed') &&
+                      !track.recommendationTag!.contains('theo dõi') &&
+                      !track.recommendationTag!.startsWith('⭐'))
                     Positioned(
                       top: 10,
                       left: 10,
