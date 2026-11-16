@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/media_models.dart';
 import '../../core/providers/sonic_providers.dart';
+import '../../core/services/sonic_audio_engine.dart';
 import '../../core/services/stream_resolver.dart';
 import '../../core/theme/sonic_tokens.dart';
 import '../../core/utils/app_locale.dart';
@@ -35,6 +36,10 @@ class HomeScreen extends ConsumerWidget {
     final showResume = ref.watch(resumeCardVisibleProvider);
     final filters = _getFilters(context);
 
+    final snap = ref.watch(playbackSnapshotProvider).valueOrNull ??
+        SonicAudioEngine.instance.snapshot;
+    final hasActiveTrack = snap.currentTrack != null;
+
     final filteredRecs = _applyFilter(
       home.recommendations,
       library.localDeviceTracks,
@@ -52,7 +57,7 @@ class HomeScreen extends ConsumerWidget {
               isWide ? 24 : 16,
               14,
               isWide ? 24 : 16,
-              isWide ? 140 : 108,
+              hasActiveTrack ? (isWide ? 140 : 108) : 24,
             ),
             children: [
               // Dynamic Clipboard Auto-Detect Banner
@@ -907,7 +912,7 @@ class _RecommendationsGrid extends StatelessWidget {
         crossAxisCount: columns,
         crossAxisSpacing: 14,
         mainAxisSpacing: 14,
-        childAspectRatio: 0.98,
+        childAspectRatio: columns >= 4 ? 0.92 : 0.98,
       ),
       itemCount: tracks.length,
       itemBuilder: (_, i) => _FeedMediaCard(track: tracks[i]),

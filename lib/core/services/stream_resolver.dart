@@ -814,10 +814,11 @@ class StreamResolver {
         }
         if (verifiedAudioUrl == null && pickedVideoHasAudio) {
           verifiedAudioUrl = pickedVideoUrl;
-        } else if (verifiedAudioUrl == null && pickedVideoUrl != null) {
-          // Adaptive video-only with broken audio: retry with ?local=true if direct
+        } else if (verifiedAudioUrl == null) {
+          // No playable audio in this attempt: try ?local=true proxy if not tried yet
           if (!useLocalProxy) continue;
-          verifiedAudioUrl = pickedVideoUrl;
+          // If already proxied and still no audio, skip to next server
+          continue;
         }
 
         if (useLocalProxy) {
@@ -844,7 +845,8 @@ class StreamResolver {
             thumbnailUrl: thumb,
             durationSeconds: (data['lengthSeconds'] as int?) ?? 0,
             source: TrackSource.customStream,
-            streamUrl: verifiedAudioUrl ?? pickedVideoUrl,
+            streamUrl: verifiedAudioUrl ??
+                (pickedVideoHasAudio ? pickedVideoUrl : null),
             videoStreamUrl: pickedVideoUrl,
             videoHasAudio: pickedVideoUrl != null && pickedVideoHasAudio,
             qualityBadge: '$preferredBitrate Stream',
@@ -928,7 +930,8 @@ class StreamResolver {
           includeVideo: includeVideo,
           videoCandidates: videoCandidates,
         );
-        final verifiedAudioUrl = probed.audioUrl;
+        final verifiedAudioUrl = probed.audioUrl ??
+            (probed.videoHasAudio ? probed.videoUrl : null);
         final pickedVideoUrl = probed.videoUrl;
         final pickedVideoHasAudio = probed.videoHasAudio;
         if (verifiedAudioUrl == null && pickedVideoUrl == null) return null;
@@ -954,7 +957,8 @@ class StreamResolver {
                 inst.url, data['thumbnailUrl'] as String? ?? ''),
             durationSeconds: (data['duration'] as int?) ?? 0,
             source: TrackSource.customStream,
-            streamUrl: verifiedAudioUrl ?? pickedVideoUrl,
+            streamUrl: verifiedAudioUrl ??
+                (pickedVideoHasAudio ? pickedVideoUrl : null),
             videoStreamUrl: pickedVideoUrl,
             videoHasAudio: pickedVideoUrl != null && pickedVideoHasAudio,
             qualityBadge: '$preferredBitrate Stream',

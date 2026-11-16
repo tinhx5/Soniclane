@@ -180,6 +180,27 @@ void main() {
         expect(find.byType(SonicLogo), findsOneWidget);
         expect(find.textContaining('Resumes at'), findsOneWidget);
 
+        // Docked Mini-Player is hidden when no track is playing
+        expect(find.text('Cockpit Stream Ready'), findsNothing);
+
+        // Play active track to display docked Mini-Player
+        await SonicAudioEngine.instance.playTrack(
+          const MediaTrack(
+            id: 'test_nowplaying_stream_1',
+            title: 'Cockpit Stream Ready',
+            artist: 'Highway Drive',
+            thumbnailUrl: '',
+            durationSeconds: 240,
+            source: TrackSource.customStream,
+            streamUrl: 'https://cdn.example.com/stream.mp3',
+            videoStreamUrl: 'https://cdn.example.com/stream.mp4',
+            videoHasAudio: true,
+          ),
+        );
+        await tester.pump();
+        await Future.delayed(const Duration(milliseconds: 100));
+        await tester.pump();
+
         // Mobile NowPlaying: open from docked Mini-Player & verify clean layout without bottom queue/tags
         await tester.tap(find.text('Cockpit Stream Ready'));
         await tester.pump();

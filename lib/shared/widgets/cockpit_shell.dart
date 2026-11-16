@@ -142,7 +142,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                             Positioned(
                               left: 20,
                               right: 20,
-                              bottom: 96,
+                              bottom: snap.currentTrack != null ? 96 : 16,
                               child: _StatusAlertBanner(
                                 message: snap.statusBanner!,
                                 onTapSettings: () {
@@ -153,15 +153,16 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                     .clearStatusBanner(),
                               ),
                             ),
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: _DockedDesktopMiniPlayer(
-                              snap: snap,
-                              onOpenFull: () => NowPlayingScreen.open(context),
+                          if (snap.currentTrack != null)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: _DockedDesktopMiniPlayer(
+                                snap: snap,
+                                onOpenFull: () => NowPlayingScreen.open(context),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -216,7 +217,8 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                       Positioned(
                         left: 12,
                         right: 12,
-                        bottom: 92 + MediaQuery.of(context).padding.bottom,
+                        bottom: (snap.currentTrack != null ? 92 : 16) +
+                            MediaQuery.of(context).padding.bottom,
                         child: _StatusAlertBanner(
                           message: snap.statusBanner!,
                           onTapSettings: () {
@@ -228,16 +230,17 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                               SonicAudioEngine.instance.clearStatusBanner(),
                         ),
                       ),
-                    // Docked Floating Mini-Player replacing Bottom Nav Bar
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: 12 + MediaQuery.of(context).padding.bottom,
-                      child: _MobileFloatingMiniPlayer(
-                        snap: snap,
-                        onOpenFull: () => NowPlayingScreen.open(context),
+                    // Docked Floating Mini-Player replacing Bottom Nav Bar (hidden if no track loaded)
+                    if (snap.currentTrack != null)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12 + MediaQuery.of(context).padding.bottom,
+                        child: _MobileFloatingMiniPlayer(
+                          snap: snap,
+                          onOpenFull: () => NowPlayingScreen.open(context),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

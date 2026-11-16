@@ -390,12 +390,13 @@ class SonicAudioEngine {
         await native.setProperty('network-timeout', '15');
         await native.setProperty(
           'demuxer-lavf-o',
-          'reconnect=1,reconnect_streamed=1,reconnect_at_eof=1,reconnect_on_network_error=1,reconnect_delay_max=5',
+          'reconnect=1,reconnect_streamed=1,reconnect_at_eof=1,reconnect_delay_max=5',
         );
         if (isAndroidX86) {
           await native.setProperty('gpu-dumb-mode', 'yes');
         }
       }
+      await _player?.setVolume(100.0);
       _attachPlayerListeners();
     } catch (e) {
       debugPrint('[AudioEngine] Player init note: $e');
@@ -799,10 +800,18 @@ class SonicAudioEngine {
         lower.contains('failed to recognize') ||
         lower.contains('protocol not found') ||
         lower.contains('server returned') ||
+        lower.contains('connection refused') ||
+        lower.contains('cannot open') ||
+        lower.contains('could not open') ||
+        lower.contains('error loading') ||
+        lower.contains('end of file') ||
         lower.contains('401') ||
         lower.contains('403') ||
         lower.contains('404') ||
-        lower.contains('410');
+        lower.contains('410') ||
+        lower.contains('500') ||
+        lower.contains('502') ||
+        lower.contains('503');
     if (!isFatalOpen || _isRecoveringError) return;
 
     final gen = _openGeneration;
@@ -939,6 +948,7 @@ class SonicAudioEngine {
       }
     } catch (e) {
       debugPrint('[AudioEngine] Open media failed: $e');
+      _handlePlayerError('Failed to open media: $e');
     }
   }
 
