@@ -909,22 +909,6 @@ class _SearchGridCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   TrackArtwork(url: track.thumbnailUrl, radius: 0),
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: SonicTokens.secondaryBlue.withOpacity(0.92),
-                        boxShadow: SonicTokens.blueGlow(opacity: 0.35),
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                  ),
                   if (track.durationSeconds > 0)
                     Positioned(
                       bottom: 8,

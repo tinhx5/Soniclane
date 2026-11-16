@@ -91,6 +91,8 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
             builder: (context, constraints) {
             final isDesktopOrTablet = constraints.maxWidth >= 700;
             final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+            final isDetailOpen = ref.watch(cockpitSplitDetailOpenProvider) &&
+                snap.currentTrack != null;
 
             if (isDesktopOrTablet) {
               return Scaffold(
@@ -141,10 +143,38 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                   },
                                 ),
                                 Expanded(
-                                  child: IndexedStack(
-                                    index: safeDesktopIdx,
-                                    children: pages,
-                                  ),
+                                  child: isDetailOpen
+                                      ? Row(
+                                          children: [
+                                            // 50% Left Side: Cockpit Detail Player (Video/Audio, Scrubber, Controls)
+                                            Expanded(
+                                              flex: 1,
+                                              child: CockpitDetailPane(
+                                                snap: snap,
+                                                onClose: () => ref
+                                                    .read(
+                                                        cockpitSplitDetailOpenProvider
+                                                            .notifier)
+                                                    .state = false,
+                                                onOpenFullscreen: () =>
+                                                    NowPlayingScreen.open(
+                                                        context),
+                                              ),
+                                            ),
+                                            // 50% Right Side: Playlist / Search / Home / Library Page
+                                            Expanded(
+                                              flex: 1,
+                                              child: IndexedStack(
+                                                index: safeDesktopIdx,
+                                                children: pages,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : IndexedStack(
+                                          index: safeDesktopIdx,
+                                          children: pages,
+                                        ),
                                 ),
                               ],
                             ),
@@ -152,7 +182,9 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                               Positioned(
                                 left: 20,
                                 right: 20,
-                                bottom: snap.currentTrack != null ? 96 : 16,
+                                bottom: (!isDetailOpen && snap.currentTrack != null)
+                                    ? 96
+                                    : 16,
                                 child: _StatusAlertBanner(
                                   message: snap.statusBanner!,
                                   onTapSettings: () {
@@ -163,14 +195,21 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                       .clearStatusBanner(),
                                 ),
                               ),
-                            if (snap.currentTrack != null && !isKeyboardOpen)
+                            if (!isDetailOpen &&
+                                snap.currentTrack != null &&
+                                !isKeyboardOpen)
                               Positioned(
                                 left: 0,
                                 right: 0,
                                 bottom: 0,
                                 child: _DockedDesktopMiniPlayer(
                                   snap: snap,
-                                  onOpenFull: () => NowPlayingScreen.open(context),
+                                  onOpenSplit: () => ref
+                                      .read(
+                                          cockpitSplitDetailOpenProvider.notifier)
+                                      .state = true,
+                                  onOpenFull: () =>
+                                      NowPlayingScreen.open(context),
                                 ),
                               ),
                           ],
@@ -814,10 +853,12 @@ class _MobileFloatingMiniPlayer extends StatelessWidget {
 class _DockedDesktopMiniPlayer extends StatelessWidget {
   final PlaybackSnapshot snap;
   final VoidCallback onOpenFull;
+  final VoidCallback? onOpenSplit;
 
   const _DockedDesktopMiniPlayer({
     required this.snap,
     required this.onOpenFull,
+    this.onOpenSplit,
   });
 
   @override
@@ -837,12 +878,12 @@ class _DockedDesktopMiniPlayer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Left: Track Info + Source Badge (Click to open full player)
+          // Left: Track Info + Source Badge (Click to open split detail player)
           InkWell(
-            onTap: onOpenFull,
+            onTap: onOpenSplit ?? onOpenFull,
             borderRadius: BorderRadius.circular(12),
             child: Tooltip(
-              message: 'Open Full Player (F)',
+              message: 'Mở chi tiết (Split View)',
               child: SizedBox(
                 width: 280,
                 child: Row(

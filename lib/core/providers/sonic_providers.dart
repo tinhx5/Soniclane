@@ -18,6 +18,9 @@ final userHubSubTabProvider = StateProvider<int>((ref) => 0);
 final searchFocusTriggerProvider = StateProvider<int>((ref) => 0);
 final resumeCardVisibleProvider = StateProvider<bool>((ref) => true);
 
+/// Controls whether the 50/50 split detail player is open in landscape / tablet mode.
+final cockpitSplitDetailOpenProvider = StateProvider<bool>((ref) => false);
+
 // --- Audio Engine Stream & State ---
 final playbackSnapshotProvider = StreamProvider<PlaybackSnapshot>((ref) async* {
   yield SonicAudioEngine.instance.snapshot;

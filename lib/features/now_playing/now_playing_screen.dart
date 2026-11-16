@@ -440,6 +440,221 @@ class _AudioVideoTogglePill extends StatelessWidget {
   }
 }
 
+/// 50% split detail player pane for widescreen cockpit displays (tablets, car dashboards, desktop).
+/// Opens alongside the playlist or search results, with an option to expand to full screen.
+class CockpitDetailPane extends ConsumerWidget {
+  final PlaybackSnapshot snap;
+  final VoidCallback onClose;
+  final VoidCallback onOpenFullscreen;
+
+  const CockpitDetailPane({
+    super.key,
+    required this.snap,
+    required this.onClose,
+    required this.onOpenFullscreen,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final track = snap.currentTrack;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: SonicTokens.surfaceBase,
+        border: Border(right: BorderSide(color: SonicTokens.divider, width: 1)),
+      ),
+      child: Column(
+        children: [
+          // Top Bar: [ ĐANG PHÁT ]  [ AUDIO | VIDEO ]  [ Phóng to ]  [ Thu nhỏ X ]
+          Container(
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: SonicTokens.surfaceLowest.withOpacity(0.92),
+              border: const Border(
+                bottom: BorderSide(color: SonicTokens.divider, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.play_circle_fill_rounded,
+                  size: 20,
+                  color: SonicTokens.secondaryContainer,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'ĐANG PHÁT',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
+                    color: SonicTokens.secondaryLight,
+                  ),
+                ),
+                const Spacer(),
+                _AudioVideoTogglePill(
+                  isVideo: snap.isVideoMode,
+                  onChanged: (wantVideo) async {
+                    if (wantVideo) {
+                      final settings = ref.read(settingsProvider);
+                      final motion =
+                          ref.read(vehicleMotionProvider).valueOrNull;
+                      if (settings.drivingVideoLockout &&
+                          motion != null &&
+                          motion.isMovingOverThreshold) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            backgroundColor: SonicTokens.warningAmber,
+                            content: Text(
+                              'Driving Lockout: Video disabled while vehicle is moving.',
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                    }
+                    await SonicAudioEngine.instance.setVideoMode(wantVideo);
+                  },
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Phóng to toàn màn hình',
+                  icon: const Icon(
+                    Icons.fullscreen_rounded,
+                    size: 26,
+                    color: SonicTokens.secondaryContainer,
+                  ),
+                  onPressed: onOpenFullscreen,
+                ),
+                IconButton(
+                  tooltip: 'Thu nhỏ',
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: SonicTokens.textSecondary,
+                  ),
+                  onPressed: onClose,
+                ),
+              ],
+            ),
+          ),
+          // Scrollable Body of the detail player
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _MediaStageBox(
+                    track: track,
+                    isVideoMode: snap.isVideoMode,
+                    isPlaying: snap.isPlaying,
+                    position: snap.position,
+                    aspectRatio: 16 / 9,
+                    cleanMobileStage: true,
+                  ),
+                  const SizedBox(height: 14),
+                  // Title + Artist + Like + AddToPlaylist
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              track?.title ?? 'No Track Playing',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              track?.artist ?? 'Soniclane Cabin',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: SonicTokens.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (track != null) ...[
+                        IconButton(
+                          icon: Icon(
+                            snap.isLiked
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: snap.isLiked
+                                ? SonicTokens.primaryRed
+                                : SonicTokens.textSecondary,
+                            size: 22,
+                          ),
+                          onPressed: () =>
+                              SonicAudioEngine.instance.toggleLikeCurrent(),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.playlist_add_rounded,
+                              size: 24, color: SonicTokens.secondaryContainer),
+                          onPressed: () =>
+                              AddToPlaylistSheet.show(context, track),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _CockpitScrubber(
+                    position: snap.position,
+                    duration: snap.duration,
+                  ),
+                  const SizedBox(height: 12),
+                  _TransportCluster(
+                    snap: snap,
+                    centerPlaySize: 58,
+                  ),
+                  const SizedBox(height: 14),
+                  _AudioUtilityStrip(snap: snap),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: SonicTokens.secondaryContainer,
+                        side: const BorderSide(
+                            color: SonicTokens.activeBorderCyan),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: onOpenFullscreen,
+                      icon: const Icon(Icons.fullscreen_rounded, size: 20),
+                      label: const Text(
+                        'Phóng to toàn màn hình',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ModeChip extends StatelessWidget {
   final String label;
   final IconData icon;

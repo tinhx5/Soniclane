@@ -514,7 +514,7 @@ class _MobileResumeHeroCard extends ConsumerWidget {
                           const Icon(Icons.circle,
                               size: 8, color: SonicTokens.primaryContainer),
                           const SizedBox(width: 6),
-                          Flexible(
+                          Expanded(
                             child: Text(
                               'Resumes at ${track.formattedResumePosition}',
                               maxLines: 1,
@@ -657,22 +657,6 @@ class _MobileListenAgainShelf extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        Positioned(
-                          bottom: 6,
-                          right: 6,
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: i == 0
-                                  ? SonicTokens.primaryContainer
-                                  : SonicTokens.surfaceElevated,
-                            ),
-                            child: const Icon(Icons.play_arrow_rounded,
-                                color: Colors.white, size: 22),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -811,23 +795,6 @@ class _ResumeTileCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Center(
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: badgeColor,
-                        boxShadow: [
-                          BoxShadow(
-                              color: badgeColor.withOpacity(0.45),
-                              blurRadius: 18)
-                        ],
-                      ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white, size: 32),
-                    ),
-                  ),
                   Positioned(
                     bottom: 8,
                     right: 8,
@@ -872,7 +839,7 @@ class _ResumeTileCard extends StatelessWidget {
                   Text(
                     showProgress
                         ? 'Resumes at ${track.formattedResumePosition} • ${track.artist}'
-                        : '${track.artist} • ${track.qualityBadge}',
+                        : track.artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -905,17 +872,24 @@ class _RecommendationsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: columns >= 4 ? 0.92 : 0.98,
-      ),
-      itemCount: tracks.length,
-      itemBuilder: (_, i) => _FeedMediaCard(track: tracks[i]),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dynamicCols = constraints.maxWidth >= 950
+            ? 4
+            : (constraints.maxWidth >= 600 ? 3 : 2);
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: dynamicCols,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+            childAspectRatio: dynamicCols >= 4 ? 1.10 : 1.18,
+          ),
+          itemCount: tracks.length,
+          itemBuilder: (_, i) => _FeedMediaCard(track: tracks[i]),
+        );
+      },
     );
   }
 }
@@ -945,35 +919,12 @@ class _FeedMediaCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   TrackArtwork(url: track.thumbnailUrl, radius: 0),
-                  if (track.recommendationTag != null &&
-                      !track.recommendationTag!.contains('Followed') &&
-                      !track.recommendationTag!.contains('theo dõi') &&
-                      !track.recommendationTag!.startsWith('⭐'))
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child:
-                          RecommendationTagBadge(tag: track.recommendationTag!),
-                    ),
-                  Center(
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: SonicTokens.secondaryBlue.withOpacity(0.92),
-                        boxShadow: SonicTokens.blueGlow(),
-                      ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white, size: 30),
-                    ),
-                  ),
                   Positioned(
                     bottom: 8,
                     right: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                          horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.78),
                         borderRadius: BorderRadius.circular(6),
@@ -989,44 +940,43 @@ class _FeedMediaCard extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(10, 8, 6, 10),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           track.title,
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                '${track.artist}${track.viewCountLabel != null ? " • ${track.viewCountLabel}" : ""}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SourceBadgeChip(
-                              source: track.source,
-                              customLabel: track.qualityBadge,
-                            ),
-                          ],
+                        const SizedBox(height: 3),
+                        Text(
+                          track.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: SonicTokens.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     icon: const Icon(Icons.more_vert_rounded,
-                        color: SonicTokens.textSecondary),
+                        color: SonicTokens.textSecondary, size: 20),
                     onPressed: () => AddToPlaylistSheet.show(context, track),
                   ),
                 ],

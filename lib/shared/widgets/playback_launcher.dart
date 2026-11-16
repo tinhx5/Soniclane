@@ -23,6 +23,9 @@ Future<void> playTrackAndOpenMobile(
 
   if (isMobile) {
     NowPlayingScreen.open(context);
+  } else {
+    // Open 50/50 split detail player in landscape
+    ref.read(cockpitSplitDetailOpenProvider.notifier).state = true;
   }
 
   await SonicAudioEngine.instance.playTrack(
