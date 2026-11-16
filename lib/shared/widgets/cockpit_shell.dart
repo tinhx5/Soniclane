@@ -4,10 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/media_models.dart';
 import '../../core/providers/sonic_providers.dart';
 import '../../core/services/sonic_audio_engine.dart';
-import '../../core/services/stream_resolver.dart';
+import '../../core/services/voice_search_service.dart';
 import '../../core/theme/sonic_tokens.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/library/library_screen.dart';
+import '../../features/library/playlists_tab_screen.dart';
 import '../../features/now_playing/now_playing_screen.dart';
 import '../../features/search/search_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -52,12 +53,16 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
         SonicAudioEngine.instance.snapshot;
     final motion = ref.watch(vehicleMotionProvider).valueOrNull;
 
-    const pages = [
-      HomeScreen(),
-      SearchScreen(),
-      LibraryScreen(),
-      SettingsScreen(),
+    final pages = [
+      const HomeScreen(), // 0
+      const SearchScreen(), // 1
+      const LibraryScreen(), // 2
+      const SettingsScreen(), // 3
+      const PlaylistsTabScreen(), // 4
+      const UserHubScreen(), // 5
     ];
+
+    final safeDesktopIdx = activeTab >= pages.length ? 0 : activeTab;
 
     // Support Android Back navigation + Windows Desktop media transport shortcuts
     return PopScope(
@@ -127,7 +132,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                               ),
                               Expanded(
                                 child: IndexedStack(
-                                  index: activeTab,
+                                  index: safeDesktopIdx,
                                   children: pages,
                                 ),
                               ),
@@ -245,7 +250,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
   }
 }
 
-class _TopCockpitHeader extends ConsumerWidget {
+class _TopCockpitHeader extends ConsumerStatefulWidget {
   final bool isParked;
   final bool showLogoWordmark;
   final bool isMobileMode;
@@ -267,17 +272,115 @@ class _TopCockpitHeader extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final instances = ref.watch(serverInstancesProvider);
-    final activeInst = instances.isNotEmpty
-        ? instances.first
-        : StreamResolver.instance.activeInstance;
-    final width = MediaQuery.of(context).size.width;
-    final isCompact = width < 520;
+  ConsumerState<_TopCockpitHeader> createState() => _TopCockpitHeaderState();
+}
+
+class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _triggerSearch(String query) {
+    if (widget.activeTab != 1) {
+      ref.read(activeTabProvider.notifier).state = 1;
+    }
+    ref.read(searchProvider.notifier).executeSearch(query);
+  }
+
+  Future<void> _triggerVoiceSearch() async {
+    ref.read(activeTabProvider.notifier).state = 1;
+    final isVoiceOpen = ref.read(searchProvider).isVoiceHudOpen;
+    final next = !isVoiceOpen;
+    ref.read(searchProvider.notifier).setVoiceHud(next);
+    if (next) {
+      await VoiceSearchService.instance.startListening(
+        onFinalResult: (spoken) {
+          ref.read(searchProvider.notifier).setVoiceHud(false);
+          _searchCtrl.text = spoken;
+          ref.read(searchProvider.notifier).executeSearch(spoken);
+        },
+      );
+    } else {
+      await VoiceSearchService.instance.stopListening();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.isMobileMode) {
+      // Mobile Portrait Header: Logo on left, Search and Profile on right
+      return Container(
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceLowest.withOpacity(0.92),
+          border: const Border(
+            bottom: BorderSide(color: SonicTokens.divider, width: 1),
+          ),
+        ),
+        child: Row(
+          children: [
+            InkWell(
+              onTap: widget.onHome,
+              borderRadius: BorderRadius.circular(12),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                child: SonicLogo(size: 32, showWordmark: true),
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Search',
+              onPressed: widget.onSearchTap,
+              icon: Icon(
+                Icons.search_rounded,
+                size: 26,
+                color: widget.activeTab == 1
+                    ? SonicTokens.secondaryContainer
+                    : SonicTokens.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: widget.onProfile,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.activeTab == 2
+                      ? SonicTokens.secondaryBlue.withOpacity(0.28)
+                      : SonicTokens.surfaceElevated,
+                  border: Border.all(
+                    color: widget.activeTab == 2
+                        ? SonicTokens.secondaryContainer
+                        : SonicTokens.glassBorder,
+                  ),
+                ),
+                child: const Icon(Icons.person_outline_rounded,
+                    color: SonicTokens.primaryTint, size: 20),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Landscape / Widescreen Cockpit Header:
+    // No logo/name (in left rail), no status pills, center Search input bar, right Voice search mic button
+    final searchQuery = ref.watch(searchProvider).query;
+    if (_searchCtrl.text.isEmpty && searchQuery.isNotEmpty) {
+      _searchCtrl.text = searchQuery;
+    }
 
     return Container(
-      height: 68,
-      padding: EdgeInsets.symmetric(horizontal: isCompact ? 16 : 24),
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: SonicTokens.surfaceLowest.withOpacity(0.92),
         border: const Border(
@@ -286,167 +389,96 @@ class _TopCockpitHeader extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          InkWell(
-            onTap: onHome,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-              child: SonicLogo(size: 34, showWordmark: showLogoWordmark),
-            ),
-          ),
-          const Spacer(),
-          if (!isCompact) ...[
-            // Custom Media Server Status Pill
-            InkWell(
-              onTap: onSettings,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: SonicTokens.surfaceCard,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: SonicTokens.glassBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.circle,
-                      size: 8,
-                      color: activeInst == null
-                          ? SonicTokens.secondaryContainer
-                          : (activeInst.isHealthy
-                              ? SonicTokens.successGreen
-                              : SonicTokens.warningAmber),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      activeInst != null
-                          ? (activeInst.isHealthy ? 'Connected' : 'Connection Warning')
-                          : 'Local & Cloud Ready',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: activeInst != null && activeInst.isHealthy
-                            ? SonicTokens.successGreen
-                            : SonicTokens.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            // P-Gear Video Ready Pill
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          // Center Search Input
+          Expanded(
+            child: Container(
+              height: 44,
               decoration: BoxDecoration(
-                color: SonicTokens.surfaceCard,
+                color: SonicTokens.surfaceHigh,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: isParked
+                  color: widget.activeTab == 1
                       ? SonicTokens.activeBorderCyan
-                      : SonicTokens.warningAmber.withOpacity(0.5),
+                      : SonicTokens.glassBorder,
                 ),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    isParked
-                        ? Icons.local_parking_rounded
-                        : Icons.directions_car_rounded,
-                    size: 15,
-                    color: isParked
-                        ? SonicTokens.secondaryContainer
-                        : SonicTokens.warningAmber,
+                  const Icon(
+                    Icons.search_rounded,
+                    color: SonicTokens.secondaryContainer,
+                    size: 22,
                   ),
-                  const SizedBox(width: 5),
-                  Text(
-                    isParked ? 'P-GEAR • VIDEO READY' : 'IN MOTION • AUDIO SAFE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: isParked
-                          ? SonicTokens.secondaryLight
-                          : SonicTokens.warningAmber,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Tìm kiếm bài hát, ca sĩ, danh sách phát...',
+                        hintStyle: TextStyle(
+                          color: SonicTokens.textTertiary,
+                          fontSize: 14,
+                        ),
+                      ),
+                      onSubmitted: _triggerSearch,
+                      onTap: () {
+                        if (widget.activeTab != 1) {
+                          ref.read(activeTabProvider.notifier).state = 1;
+                        }
+                      },
                     ),
                   ),
+                  if (_searchCtrl.text.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          size: 18, color: SonicTokens.textSecondary),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        _triggerSearch('');
+                      },
+                    ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
-          ],
-          if (isMobileMode) ...[
-            IconButton(
-              tooltip: 'Search',
-              onPressed: onSearchTap,
-              icon: Icon(
-                Icons.search_rounded,
-                size: 26,
-                color: activeTab == 1
-                    ? SonicTokens.secondaryContainer
-                    : SonicTokens.textSecondary,
-              ),
-            ),
-          ] else ...[
-            IconButton(
-              tooltip: 'Settings',
-              onPressed: onSettings,
-              icon: const Icon(Icons.settings_outlined,
-                  color: SonicTokens.textSecondary),
-            ),
-          ],
-          if (!isMobileMode) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          ),
+          const SizedBox(width: 14),
+          // Far Right Voice Search Mic Button
+          InkWell(
+            onTap: _triggerVoiceSearch,
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: SonicTokens.surfaceContainer,
+                color: SonicTokens.secondaryContainer,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: SonicTokens.glassBorder),
+                boxShadow: SonicTokens.cyanGlow(opacity: 0.35),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.verified_user_rounded,
-                      size: 14, color: SonicTokens.secondaryContainer),
-                  SizedBox(width: 5),
+                  Icon(
+                    Icons.mic_rounded,
+                    color: SonicTokens.surfaceBase,
+                    size: 22,
+                  ),
+                  SizedBox(width: 6),
                   Text(
-                    'Free Edition',
+                    'Tìm giọng nói',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: SonicTokens.secondaryLight,
+                      color: SonicTokens.surfaceBase,
                     ),
                   ),
                 ],
-              ),
-            ),
-          ],
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: onProfile,
-            borderRadius: BorderRadius.circular(999),
-            child: Tooltip(
-              message: 'Driver Cockpit • Free Edition (All Unlocked)',
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: (isMobileMode && activeTab == 2)
-                      ? SonicTokens.secondaryBlue.withOpacity(0.28)
-                      : SonicTokens.surfaceElevated,
-                  border: Border.all(
-                    color: (isMobileMode && activeTab == 2)
-                        ? SonicTokens.secondaryContainer
-                        : SonicTokens.glassBorder,
-                  ),
-                ),
-                child: const Icon(Icons.person_outline_rounded,
-                    color: SonicTokens.primaryTint, size: 22),
               ),
             ),
           ),
@@ -476,44 +508,100 @@ class _LeftCockpitRail extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          const SonicLogo(size: 44, showWordmark: false),
-          const SizedBox(height: 6),
-          const Text(
-            'SONICLANE',
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
-              color: SonicTokens.textSecondary,
+          // 1. Logo và tên ở trên cùng (Bấm vào để về Trang chủ / Home)
+          InkWell(
+            onTap: () => onSelect(0),
+            borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+            child: Tooltip(
+              message: 'Trang chủ (Home)',
+              child: Container(
+                width: 68,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                decoration: BoxDecoration(
+                  color: activeIndex == 0 ? SonicTokens.surfaceHigh : Colors.transparent,
+                  borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+                  border: activeIndex == 0
+                      ? Border.all(color: SonicTokens.activeBorderCyan)
+                      : null,
+                  boxShadow: activeIndex == 0
+                      ? SonicTokens.cyanGlow(opacity: 0.2)
+                      : null,
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SonicLogo(size: 40, showWordmark: false),
+                    SizedBox(height: 6),
+                    Text(
+                      'SONICLANE',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                        color: SonicTokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 24),
-          _RailItem(
-            icon: Icons.home_rounded,
-            label: 'HOME',
-            active: activeIndex == 0,
-            onTap: () => onSelect(0),
-          ),
-          const SizedBox(height: 10),
-          _RailItem(
-            icon: Icons.search_rounded,
-            label: 'SEARCH',
-            active: activeIndex == 1,
-            onTap: () => onSelect(1),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
+          // 2. Thư viện
           _RailItem(
             icon: Icons.video_library_rounded,
             label: 'LIBRARY',
             active: activeIndex == 2,
             onTap: () => onSelect(2),
           ),
-          const Spacer(),
+          const SizedBox(height: 10),
+          // 3. Playlist
+          _RailItem(
+            icon: Icons.queue_music_rounded,
+            label: 'PLAYLIST',
+            active: activeIndex == 4,
+            onTap: () => onSelect(4),
+          ),
+          const SizedBox(height: 10),
+          // 4. Setting (Cài đặt)
           _RailItem(
             icon: Icons.settings_rounded,
             label: 'SETTINGS',
             active: activeIndex == 3,
             onTap: () => onSelect(3),
+          ),
+          const Spacer(),
+          // 5. Dưới cùng là icon User
+          InkWell(
+            onTap: () => onSelect(5),
+            borderRadius: BorderRadius.circular(999),
+            child: Tooltip(
+              message: 'Driver Profile • Tài khoản',
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: activeIndex == 5
+                      ? SonicTokens.secondaryBlue.withOpacity(0.28)
+                      : SonicTokens.surfaceElevated,
+                  border: Border.all(
+                    color: activeIndex == 5
+                        ? SonicTokens.secondaryContainer
+                        : SonicTokens.glassBorder,
+                    width: activeIndex == 5 ? 2 : 1,
+                  ),
+                  boxShadow: activeIndex == 5
+                      ? SonicTokens.cyanGlow(opacity: 0.25)
+                      : null,
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: SonicTokens.primaryTint,
+                  size: 24,
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -187,10 +187,17 @@ class StreamResolver {
         timeout: timeout,
       );
     }
-    if (urls.isEmpty &&
-        defaultServerConfigUrl == kDefaultServerConfigUrl &&
+    if (defaultServerConfigUrl == kDefaultServerConfigUrl &&
         !testOfflineMode) {
-      urls.add('https://yt.chocolatemoo53.com');
+      const backupMirrors = [
+        'https://yt.chocolatemoo53.com',
+        'https://api.piped.private.coffee',
+      ];
+      for (final m in backupMirrors) {
+        if (!urls.contains(m)) {
+          urls.add(m);
+        }
+      }
     }
     return urls.join(', ');
   }
@@ -323,14 +330,13 @@ class StreamResolver {
               isHealthy: false,
             );
           } catch (_) {
-            // If /stats answered JSON cleanly and search check timed out, still keep usable
+            sw.stop();
+            return inst.copyWith(
+              tier: 'Search Timeout',
+              latencyMs: sw.elapsedMilliseconds,
+              isHealthy: false,
+            );
           }
-          sw.stop();
-          return inst.copyWith(
-            tier: 'JSON Media API (v1)',
-            latencyMs: sw.elapsedMilliseconds,
-            isHealthy: true,
-          );
         }
         if (_looksLikeHtmlResponse(res)) {
           sawHtmlWebsite = true;

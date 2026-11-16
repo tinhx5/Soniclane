@@ -235,8 +235,22 @@ void main() {
         expect(find.text('Browse Hardware Files'), findsOneWidget);
         expect(find.text('Connect Drive Link / Folder'), findsOneWidget);
         expect(find.text('SONICLANE'), findsOneWidget);
+        expect(find.text('LIBRARY'), findsOneWidget);
+        expect(find.text('PLAYLIST'), findsOneWidget);
         expect(find.text('SETTINGS'), findsOneWidget);
+        expect(find.text('Tìm kiếm bài hát, ca sĩ, danh sách phát...'), findsOneWidget);
+        expect(find.text('Tìm giọng nói'), findsOneWidget);
+        expect(find.text('inv.nadeko.net'), findsNothing);
+        expect(find.text('P-GEAR • VIDEO READY'), findsNothing);
+        expect(find.byIcon(Icons.person_rounded), findsAtLeastNWidgets(1));
         expect(find.text('Full Player ↗'), findsOneWidget);
+
+        // Tap PLAYLIST to verify dedicated Playlist screen
+        await tester.tap(find.text('PLAYLIST'));
+        await tester.pump();
+        await Future.delayed(const Duration(milliseconds: 100));
+        await tester.pump();
+        expect(find.text('Danh sách phát'), findsOneWidget);
 
         // Navigate to Settings via Rail
         await tester.tap(find.text('SETTINGS'));

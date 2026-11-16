@@ -105,7 +105,7 @@ class HomeScreen extends ConsumerWidget {
                 else
                   _RecommendationsGrid(
                     tracks: filteredRecs,
-                    columns: constraints.maxWidth >= 1150 ? 3 : 2,
+                    columns: 4,
                   ),
               ] else ...[
                 // Mobile Portrait Layout (Resume only shown once per app launch)
@@ -905,9 +905,9 @@ class _RecommendationsGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.05,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: 0.98,
       ),
       itemCount: tracks.length,
       itemBuilder: (_, i) => _FeedMediaCard(track: tracks[i]),
