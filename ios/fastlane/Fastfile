@@ -85,7 +85,7 @@ platform :ios do
     # Upload to App Store Connect TestFlight
     upload_to_testflight(
       api_key: api_key,
-      skip_waiting_for_build_processing: true
+      skip_waiting_for_build_processing: false
     )
 
     delete_keychain(name: keychain_name)

@@ -30,6 +30,12 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Soniclane checks vehicle speed to enable Video Mode only when safely parked.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Soniclane monitors vehicle motion to ensure video playback is safely paused while driving.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Soniclane lets you import audio files and custom playlist artwork from your photo library.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Soniclane lets you save playlist cover artwork.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Soniclane opens a local LAN transfer server on port 8080 so you can drop audio files wirelessly.</string>
 	<key>NSMicrophoneUsageDescription</key>
