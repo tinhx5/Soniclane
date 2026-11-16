@@ -383,14 +383,14 @@ class SonicAudioEngine {
         final native = _player!.platform as NativePlayer;
         await native.setProperty('user-agent', StreamResolver.kStreamUserAgent);
         await native.setProperty('cache-on-disk', 'no');
-        await native.setProperty('cache-secs', '8');
-        await native.setProperty('demuxer-readahead-secs', '8');
-        await native.setProperty('demuxer-max-bytes', '24MiB');
-        await native.setProperty('demuxer-max-back-bytes', '8MiB');
-        await native.setProperty('network-timeout', '10');
+        await native.setProperty('cache-secs', '30');
+        await native.setProperty('demuxer-readahead-secs', '30');
+        await native.setProperty('demuxer-max-bytes', '64MiB');
+        await native.setProperty('demuxer-max-back-bytes', '16MiB');
+        await native.setProperty('network-timeout', '15');
         await native.setProperty(
           'demuxer-lavf-o',
-          'reconnect=1,reconnect_streamed=1,reconnect_delay_max=3',
+          'reconnect=1,reconnect_streamed=1,reconnect_at_eof=1,reconnect_on_network_error=1,reconnect_delay_max=5',
         );
         if (isAndroidX86) {
           await native.setProperty('gpu-dumb-mode', 'yes');
@@ -557,6 +557,16 @@ class SonicAudioEngine {
 
     player.stream.completed.listen((completed) {
       if (completed) {
+        // Guard against false EOF: if stream drops prematurely while position is far from duration
+        final currentPos = _snapshot.position;
+        final totalDur = _snapshot.duration;
+        if (totalDur > const Duration(seconds: 15) &&
+            currentPos < totalDur - const Duration(seconds: 5)) {
+          debugPrint(
+            '[AudioEngine] Premature stream completion detected ($currentPos / $totalDur). Ignoring false EOF.',
+          );
+          return;
+        }
         if (_snapshot.isRepeat) {
           seekTo(Duration.zero).then((_) => play());
         } else {

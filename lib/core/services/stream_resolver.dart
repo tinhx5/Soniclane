@@ -672,10 +672,21 @@ class StreamResolver {
     }
 
     ({String? url, bool hasAudio}) pickedVideo = (url: null, hasAudio: false);
+    // 1. Prefer verified playable stream that includes native audio (HLS or muxed MP4)
+    // to avoid dual-connection throttling and 1-3s buffer stall.
     for (final v in uniqueVideos) {
-      if (statusByUrl[v.url] == _ProbeStatus.playable) {
-        pickedVideo = (url: v.url, hasAudio: v.hasAudio);
+      if (v.hasAudio && statusByUrl[v.url] == _ProbeStatus.playable) {
+        pickedVideo = (url: v.url, hasAudio: true);
         break;
+      }
+    }
+    // 2. Fall back to video-only playable stream if no muxed stream is available.
+    if (pickedVideo.url == null) {
+      for (final v in uniqueVideos) {
+        if (statusByUrl[v.url] == _ProbeStatus.playable) {
+          pickedVideo = (url: v.url, hasAudio: v.hasAudio);
+          break;
+        }
       }
     }
 
@@ -684,9 +695,17 @@ class StreamResolver {
     // But DO NOT pick candidates that were explicitly rejected (e.g. 403 Forbidden).
     if (pickedVideo.url == null && uniqueVideos.isNotEmpty) {
       for (final v in uniqueVideos) {
-        if (statusByUrl[v.url] == _ProbeStatus.timeout) {
-          pickedVideo = (url: v.url, hasAudio: v.hasAudio);
+        if (v.hasAudio && statusByUrl[v.url] == _ProbeStatus.timeout) {
+          pickedVideo = (url: v.url, hasAudio: true);
           break;
+        }
+      }
+      if (pickedVideo.url == null) {
+        for (final v in uniqueVideos) {
+          if (statusByUrl[v.url] == _ProbeStatus.timeout) {
+            pickedVideo = (url: v.url, hasAudio: v.hasAudio);
+            break;
+          }
         }
       }
     }
@@ -742,8 +761,10 @@ class StreamResolver {
             _pickAudioFormat(inst.url, adaptive, preferredBitrate);
 
         final videoCandidates = <({String url, bool hasAudio})>[];
-        // For live broadcasts, HLS manifests are much more reliable than noclen adaptive segments.
-        if (isLiveNow && hlsUrl != null) {
+        // 1. Prioritize HLS streams (live or VOD) and muxed formatStreams first.
+        // Muxed/HLS streams have combined A/V so they do not require a separate external audio
+        // HTTP connection, completely avoiding player starvation, desync, and 1-3s buffer stalling.
+        if (hlsUrl != null) {
           videoCandidates.add((url: hlsUrl, hasAudio: true));
         }
         for (final u in _orderedVideoUrls(
@@ -767,9 +788,6 @@ class StreamResolver {
               inst.url, adaptivePool, preferredVideoQuality, 'qualityLabel')) {
             videoCandidates.add((url: u, hasAudio: false));
           }
-        }
-        if (!isLiveNow && hlsUrl != null) {
-          videoCandidates.add((url: hlsUrl, hasAudio: true));
         }
 
         if (audioUrl == null && videoCandidates.isEmpty) continue;
@@ -878,6 +896,10 @@ class StreamResolver {
             .toList();
 
         final videoCandidates = <({String url, bool hasAudio})>[];
+        // 1. Prioritize HLS and muxed audio+video streams first.
+        if (hlsUrl != null) {
+          videoCandidates.add((url: hlsUrl, hasAudio: true));
+        }
         for (final u in _orderedVideoUrls(
             inst.url, muxedMatches, preferredVideoQuality, 'quality')) {
           videoCandidates.add((url: u, hasAudio: true));
@@ -893,9 +915,6 @@ class StreamResolver {
               inst.url, pool, preferredVideoQuality, 'quality')) {
             videoCandidates.add((url: u, hasAudio: false));
           }
-        }
-        if (hlsUrl != null) {
-          videoCandidates.add((url: hlsUrl, hasAudio: true));
         }
 
         if (audioUrl == null && videoCandidates.isEmpty) return null;

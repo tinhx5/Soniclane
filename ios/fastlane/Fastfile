@@ -50,11 +50,51 @@ platform :ios do
       )
     else
       UI.message("No p12 secret provided. Attempting to fetch or create certificate via App Store Connect API...")
-      get_certificates(
-        api_key: api_key,
-        keychain_path: actual_keychain_path,
-        keychain_password: keychain_password
-      )
+      begin
+        get_certificates(
+          api_key: api_key,
+          keychain_path: actual_keychain_path,
+          keychain_password: keychain_password
+        )
+      rescue => e
+        err_msg = e.message.to_s
+        if err_msg.include?("maximum number of available Distribution certificates") ||
+           err_msg.include?("Could not create another Distribution certificate")
+          UI.important("Reached maximum distribution certificates on Apple account and no local private key matches.")
+          UI.important("Attempting to auto-clean unreachable/oldest Distribution certificate from App Store Connect...")
+          begin
+            require "spaceship"
+            certs = Spaceship::ConnectAPI::Certificate.all.select do |c|
+              c.certificate_type.to_s.upcase.include?("DISTRIBUTION")
+            end
+            if certs.any?
+              oldest = certs.min_by { |c| c.expiration_date || Time.now }
+              UI.important("Revoking oldest distribution certificate: #{oldest.id} (name: #{oldest.name}, expires: #{oldest.expiration_date})")
+              begin
+                oldest.delete!
+              rescue => del_err
+                UI.message("Instance delete failed, trying client delete: #{del_err}")
+                Spaceship::ConnectAPI.delete_certificate(certificate_id: oldest.id)
+              end
+              UI.message("Certificate slot freed! Retrying get_certificates...")
+              get_certificates(
+                api_key: api_key,
+                keychain_path: actual_keychain_path,
+                keychain_password: keychain_password
+              )
+            else
+              raise e
+            end
+          rescue => inner_err
+            UI.error("Auto-revocation attempt failed: #{inner_err}")
+            UI.important("ACTION REQUIRED: Log into https://developer.apple.com/account/resources/certificates/list")
+            UI.important("and manually Revoke one of the unused Distribution certificates (e.g. 46P3MJ9QB4 or SW66LFMM92).")
+            raise e
+          end
+        else
+          raise e
+        end
+      end
 
       # Backup any generated certificate + key as p12 so it can be saved as an artifact
       sh("security export -k #{actual_keychain_path} -t all -f pkcs12 -P #{keychain_password} -o ./generated_dist_cert.p12") rescue nil
