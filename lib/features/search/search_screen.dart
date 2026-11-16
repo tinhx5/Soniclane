@@ -101,6 +101,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _runQuery(String q) {
+    _searchFocusNode.unfocus();
     _searchCtrl.text = q;
     ref.read(searchProvider.notifier).executeSearch(q);
   }
@@ -121,16 +122,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 700;
-        return Stack(
-          children: [
-            ListView(
-          controller: _scrollCtrl,
-          padding: EdgeInsets.fromLTRB(
-            isWide ? 24 : 16,
-            16,
-            isWide ? 24 : 16,
-            108,
-          ),
+        return GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.translucent,
+          child: Stack(
+            children: [
+              ListView(
+                controller: _scrollCtrl,
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                  isWide ? 24 : 16,
+                  16,
+                  isWide ? 24 : 16,
+                  108,
+                ),
           children: [
             // Search Bar + Paste Link + Glowing Voice Mic
             Row(
@@ -819,7 +824,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
       ],
-    );
+    ),
+  );
       },
     );
   }

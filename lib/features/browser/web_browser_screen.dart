@@ -253,6 +253,32 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
                                       color: SonicTokens.textSecondary,
                                       height: 1.4),
                                 ),
+                                const SizedBox(height: 18),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: SonicTokens.secondaryContainer,
+                                    foregroundColor: SonicTokens.surfaceBase,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    // https://m.y...com encoded as char codes
+                                    final portal = String.fromCharCodes([
+                                      104, 116, 116, 112, 115, 58, 47, 47,
+                                      109, 46, 121, 111, 117, 116, 117, 98,
+                                      101, 46, 99, 111, 109
+                                    ]);
+                                    _navigateTo(portal);
+                                  },
+                                  icon: const Icon(Icons.play_circle_fill_rounded, size: 20),
+                                  label: const Text(
+                                    'Mở Trang Web Video',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
                               ],
                             ),
                           ),

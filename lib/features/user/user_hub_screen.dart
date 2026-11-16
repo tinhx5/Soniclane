@@ -84,15 +84,19 @@ class UserHubScreen extends ConsumerWidget {
                       icon: Icons.library_music_rounded,
                       label: 'Library',
                       active: subTab == 0,
-                      onTap: () =>
-                          ref.read(userHubSubTabProvider.notifier).state = 0,
+                      onTap: () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        ref.read(userHubSubTabProvider.notifier).state = 0;
+                      },
                     ),
                     _HubTabChip(
                       icon: Icons.tune_rounded,
                       label: 'Settings',
                       active: subTab == 1,
-                      onTap: () =>
-                          ref.read(userHubSubTabProvider.notifier).state = 1,
+                      onTap: () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        ref.read(userHubSubTabProvider.notifier).state = 1;
+                      },
                     ),
                   ],
                 ),

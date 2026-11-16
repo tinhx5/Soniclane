@@ -90,83 +90,94 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
           child: LayoutBuilder(
             builder: (context, constraints) {
             final isDesktopOrTablet = constraints.maxWidth >= 700;
+            final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
             if (isDesktopOrTablet) {
               return Scaffold(
                 backgroundColor: SonicTokens.surfaceBase,
-                body: Row(
-                  children: [
-                    _LeftCockpitRail(
-                      activeIndex: activeTab,
-                      onSelect: (i) {
-                        ref.read(activeTabProvider.notifier).state = i;
-                        if (i == 1) {
-                          ref.read(searchFocusTriggerProvider.notifier).state++;
-                        }
-                      },
-                    ),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          Column(
-                            children: [
-                              _TopCockpitHeader(
-                                isParked: motion?.isParked ?? true,
-                                showLogoWordmark: true,
-                                isMobileMode: false,
-                                activeTab: activeTab,
-                                onHome: () => ref
-                                    .read(activeTabProvider.notifier)
-                                    .state = 0,
-                                onSearchTap: () {
-                                  ref.read(activeTabProvider.notifier).state = 1;
-                                  ref
-                                      .read(searchFocusTriggerProvider.notifier)
-                                      .state++;
-                                },
-                                onSettings: () => ref
-                                    .read(activeTabProvider.notifier)
-                                    .state = 3,
-                                onProfile: () =>
-                                    ref.read(activeTabProvider.notifier).state = 2,
-                              ),
-                              Expanded(
-                                child: IndexedStack(
-                                  index: safeDesktopIdx,
-                                  children: pages,
+                body: GestureDetector(
+                  onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                  behavior: HitTestBehavior.translucent,
+                  child: Row(
+                    children: [
+                      _LeftCockpitRail(
+                        activeIndex: activeTab,
+                        onSelect: (i) {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          ref.read(activeTabProvider.notifier).state = i;
+                          if (i == 1) {
+                            ref.read(searchFocusTriggerProvider.notifier).state++;
+                          }
+                        },
+                      ),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            Column(
+                              children: [
+                                _TopCockpitHeader(
+                                  isParked: motion?.isParked ?? true,
+                                  showLogoWordmark: true,
+                                  isMobileMode: false,
+                                  activeTab: activeTab,
+                                  onHome: () {
+                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    ref.read(activeTabProvider.notifier).state = 0;
+                                  },
+                                  onSearchTap: () {
+                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    ref.read(activeTabProvider.notifier).state = 1;
+                                    ref
+                                        .read(searchFocusTriggerProvider.notifier)
+                                        .state++;
+                                  },
+                                  onSettings: () {
+                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    ref.read(activeTabProvider.notifier).state = 3;
+                                  },
+                                  onProfile: () {
+                                    FocusManager.instance.primaryFocus?.unfocus();
+                                    ref.read(activeTabProvider.notifier).state = 2;
+                                  },
+                                ),
+                                Expanded(
+                                  child: IndexedStack(
+                                    index: safeDesktopIdx,
+                                    children: pages,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (snap.statusBanner != null && !isKeyboardOpen)
+                              Positioned(
+                                left: 20,
+                                right: 20,
+                                bottom: snap.currentTrack != null ? 96 : 16,
+                                child: _StatusAlertBanner(
+                                  message: snap.statusBanner!,
+                                  onTapSettings: () {
+                                    SonicAudioEngine.instance.clearStatusBanner();
+                                    ref.read(activeTabProvider.notifier).state = 3;
+                                  },
+                                  onClose: () => SonicAudioEngine.instance
+                                      .clearStatusBanner(),
                                 ),
                               ),
-                            ],
-                          ),
-                          if (snap.statusBanner != null)
-                            Positioned(
-                              left: 20,
-                              right: 20,
-                              bottom: snap.currentTrack != null ? 96 : 16,
-                              child: _StatusAlertBanner(
-                                message: snap.statusBanner!,
-                                onTapSettings: () {
-                                  SonicAudioEngine.instance.clearStatusBanner();
-                                  ref.read(activeTabProvider.notifier).state = 3;
-                                },
-                                onClose: () => SonicAudioEngine.instance
-                                    .clearStatusBanner(),
+                            if (snap.currentTrack != null && !isKeyboardOpen)
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _DockedDesktopMiniPlayer(
+                                  snap: snap,
+                                  onOpenFull: () => NowPlayingScreen.open(context),
+                                ),
                               ),
-                            ),
-                          if (snap.currentTrack != null)
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: _DockedDesktopMiniPlayer(
-                                snap: snap,
-                                onOpenFull: () => NowPlayingScreen.open(context),
-                              ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }
@@ -181,67 +192,77 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
 
             return Scaffold(
               backgroundColor: SonicTokens.surfaceBase,
-              body: SafeArea(
-                bottom: false,
-                child: Stack(
-                  children: [
-                    Column(
-                      children: [
-                        _TopCockpitHeader(
-                          isParked: motion?.isParked ?? true,
-                          showLogoWordmark: true,
-                          isMobileMode: true,
-                          activeTab: mobileIdx,
-                          onHome: () =>
-                              ref.read(activeTabProvider.notifier).state = 0,
-                          onSearchTap: () {
-                            ref.read(activeTabProvider.notifier).state = 1;
-                            ref.read(searchFocusTriggerProvider.notifier).state++;
-                          },
-                          onSettings: () {
-                            ref.read(userHubSubTabProvider.notifier).state = 1;
-                            ref.read(activeTabProvider.notifier).state = 2;
-                          },
-                          onProfile: () =>
-                              ref.read(activeTabProvider.notifier).state = 2,
-                        ),
-                        Expanded(
-                          child: IndexedStack(
-                            index: mobileIdx,
-                            children: mobilePages,
+              body: GestureDetector(
+                onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                behavior: HitTestBehavior.translucent,
+                child: SafeArea(
+                  bottom: false,
+                  child: Stack(
+                    children: [
+                      Column(
+                        children: [
+                          _TopCockpitHeader(
+                            isParked: motion?.isParked ?? true,
+                            showLogoWordmark: true,
+                            isMobileMode: true,
+                            activeTab: mobileIdx,
+                            onHome: () {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              ref.read(activeTabProvider.notifier).state = 0;
+                            },
+                            onSearchTap: () {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              ref.read(activeTabProvider.notifier).state = 1;
+                              ref.read(searchFocusTriggerProvider.notifier).state++;
+                            },
+                            onSettings: () {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              ref.read(userHubSubTabProvider.notifier).state = 1;
+                              ref.read(activeTabProvider.notifier).state = 2;
+                            },
+                            onProfile: () {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              ref.read(activeTabProvider.notifier).state = 2;
+                            },
+                          ),
+                          Expanded(
+                            child: IndexedStack(
+                              index: mobileIdx,
+                              children: mobilePages,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (snap.statusBanner != null && !isKeyboardOpen)
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          bottom: (snap.currentTrack != null ? 92 : 16) +
+                              MediaQuery.of(context).padding.bottom,
+                          child: _StatusAlertBanner(
+                            message: snap.statusBanner!,
+                            onTapSettings: () {
+                              SonicAudioEngine.instance.clearStatusBanner();
+                              ref.read(userHubSubTabProvider.notifier).state = 1;
+                              ref.read(activeTabProvider.notifier).state = 2;
+                            },
+                            onClose: () =>
+                                SonicAudioEngine.instance.clearStatusBanner(),
                           ),
                         ),
-                      ],
-                    ),
-                    if (snap.statusBanner != null)
-                      Positioned(
-                        left: 12,
-                        right: 12,
-                        bottom: (snap.currentTrack != null ? 92 : 16) +
-                            MediaQuery.of(context).padding.bottom,
-                        child: _StatusAlertBanner(
-                          message: snap.statusBanner!,
-                          onTapSettings: () {
-                            SonicAudioEngine.instance.clearStatusBanner();
-                            ref.read(userHubSubTabProvider.notifier).state = 1;
-                            ref.read(activeTabProvider.notifier).state = 2;
-                          },
-                          onClose: () =>
-                              SonicAudioEngine.instance.clearStatusBanner(),
+                      // Docked Floating Mini-Player replacing Bottom Nav Bar (hidden if no track loaded OR keyboard open)
+                      if (snap.currentTrack != null && !isKeyboardOpen)
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          bottom: 12 + MediaQuery.of(context).padding.bottom,
+                          child: _MobileFloatingMiniPlayer(
+                            snap: snap,
+                            onOpenFull: () => NowPlayingScreen.open(context),
+                          ),
                         ),
-                      ),
-                    // Docked Floating Mini-Player replacing Bottom Nav Bar (hidden if no track loaded)
-                    if (snap.currentTrack != null)
-                      Positioned(
-                        left: 12,
-                        right: 12,
-                        bottom: 12 + MediaQuery.of(context).padding.bottom,
-                        child: _MobileFloatingMiniPlayer(
-                          snap: snap,
-                          onOpenFull: () => NowPlayingScreen.open(context),
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );

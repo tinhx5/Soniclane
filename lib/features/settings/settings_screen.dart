@@ -112,6 +112,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (!mounted) return;
     setState(() => _testingLatency = false);
+    FocusScope.of(context).unfocus();
     final first = latest.isNotEmpty ? latest.first : null;
     final msg = latest.isEmpty
         ? 'No valid custom server or default mirror reachable'
@@ -135,6 +136,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final primaryInstance = instances.isNotEmpty ? instances.first : null;
 
     return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.fromLTRB(
         widget.embedded ? 0 : 20,
         widget.embedded ? 4 : 20,

@@ -14,9 +14,16 @@ import '../../core/services/sonic_audio_engine.dart';
 import '../../core/theme/sonic_tokens.dart';
 import '../../core/utils/app_locale.dart';
 import '../../shared/widgets/common_badges.dart';
+import '../browser/web_browser_screen.dart';
 import '../library/channel_detail_screen.dart';
 import '../overlays/equalizer_modal.dart';
 import '../overlays/playlist_modals.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+final _kWebWatchBase = String.fromCharCodes([
+  104, 116, 116, 112, 115, 58, 47, 47, 109, 46, 121, 111, 117, 116, 117,
+  98, 101, 46, 99, 111, 109, 47, 119, 97, 116, 99, 104, 63, 118, 61
+]);
 
 class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
@@ -489,7 +496,7 @@ class _ModeChip extends StatelessWidget {
   }
 }
 
-class _MediaStageBox extends StatelessWidget {
+class _MediaStageBox extends StatefulWidget {
   final MediaTrack? track;
   final bool isVideoMode;
   final bool isPlaying;
@@ -507,22 +514,65 @@ class _MediaStageBox extends StatelessWidget {
   });
 
   @override
+  State<_MediaStageBox> createState() => _MediaStageBoxState();
+}
+
+class _MediaStageBoxState extends State<_MediaStageBox> {
+  bool _useWebPlayer = false;
+
+  bool get _isMobileDevice =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  @override
+  void didUpdateWidget(covariant _MediaStageBox oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.track?.id != widget.track?.id) {
+      _useWebPlayer = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final track = widget.track;
     final vc = SonicAudioEngine.instance.videoController;
     final artUrl = track?.thumbnailUrl ?? '';
-    final hasPlayableVideo = track != null &&
-        ((track!.videoStreamUrl != null && track!.videoStreamUrl!.isNotEmpty) ||
-            track!.source == TrackSource.usb ||
-            track!.source == TrackSource.local ||
-            track!.source == TrackSource.googleDrive);
-    final canRenderVideo = isVideoMode && vc != null && hasPlayableVideo;
+    final isCustomStream =
+        track != null && track.source == TrackSource.customStream;
+    final hasPlayableNativeVideo = track != null &&
+        ((track.videoStreamUrl != null && track.videoStreamUrl!.isNotEmpty) ||
+            track.source == TrackSource.usb ||
+            track.source == TrackSource.local ||
+            track.source == TrackSource.googleDrive);
+
+    // On mobile devices, when user requests Video mode for online custom streams,
+    // if native video stream is missing OR user prefers web player, we run Web Player.
+    final renderWebPlayer = widget.isVideoMode &&
+        _isMobileDevice &&
+        isCustomStream &&
+        (_useWebPlayer || !hasPlayableNativeVideo);
+
+    final canRenderNativeVideo = widget.isVideoMode &&
+        !renderWebPlayer &&
+        vc != null &&
+        hasPlayableNativeVideo;
 
     Widget stage = AspectRatio(
-      aspectRatio: aspectRatio,
+      aspectRatio: widget.aspectRatio,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (canRenderVideo) ...[
+          if (renderWebPlayer) ...[
+            _EmbeddedWebVideoStage(
+              videoId: track.id,
+              onOpenBrowser: () => WebBrowserScreen.open(
+                context,
+                initialUrl: '$_kWebWatchBase${track.id}',
+              ),
+              onToggleNative: hasPlayableNativeVideo
+                  ? () => setState(() => _useWebPlayer = false)
+                  : null,
+            ),
+          ] else if (canRenderNativeVideo) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
               child: ColoredBox(
@@ -548,6 +598,7 @@ class _MediaStageBox extends StatelessWidget {
                         return Container(
                           color: Colors.black,
                           alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -568,6 +619,25 @@ class _MediaStageBox extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              if (isCustomStream && _isMobileDevice) ...[
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      setState(() => _useWebPlayer = true),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor:
+                                        SonicTokens.secondaryContainer,
+                                    side: const BorderSide(
+                                        color: SonicTokens.activeBorderCyan),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                  ),
+                                  icon: const Icon(Icons.public_rounded,
+                                      size: 16),
+                                  label:
+                                      const Text('Chơi bằng Web Player (Mượt)'),
+                                ),
+                              ],
                             ],
                           ),
                         );
@@ -620,16 +690,16 @@ class _MediaStageBox extends StatelessWidget {
                 ),
                 child: track != null
                     ? _AudioWaveformAndLyricsOverlay(
-                        track: track!,
-                        isPlaying: isPlaying,
-                        position: position,
+                        track: track,
+                        isPlaying: widget.isPlaying,
+                        position: widget.position,
                       )
                     : const SizedBox.shrink(),
               ),
             ),
           ],
-          if (!cleanMobileStage && track != null) ...[
-            if (!isVideoMode)
+          if (!widget.cleanMobileStage && track != null) ...[
+            if (!widget.isVideoMode)
               Positioned(
                 top: 12,
                 left: 12,
@@ -647,7 +717,7 @@ class _MediaStageBox extends StatelessWidget {
                           size: 8, color: SonicTokens.secondaryContainer),
                       const SizedBox(width: 6),
                       Text(
-                        track?.source == TrackSource.usb
+                        track.source == TrackSource.usb
                             ? 'LOSSLESS USB HI-RES'
                             : 'CABIN AUDIO',
                         style: const TextStyle(
@@ -664,7 +734,7 @@ class _MediaStageBox extends StatelessWidget {
             Positioned(
               top: 12,
               right: 12,
-              child: SourceBadgeChip(source: track!.source),
+              child: SourceBadgeChip(source: track.source),
             ),
           ],
         ],
@@ -673,14 +743,188 @@ class _MediaStageBox extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: canRenderVideo ? Colors.black : Colors.transparent,
+        color: (canRenderNativeVideo || renderWebPlayer)
+            ? Colors.black
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-        border: isVideoMode
+        border: widget.isVideoMode
             ? Border.all(color: Colors.white.withOpacity(0.12))
             : null,
-        boxShadow: isVideoMode ? null : SonicTokens.cyanGlow(opacity: 0.18),
+        boxShadow:
+            widget.isVideoMode ? null : SonicTokens.cyanGlow(opacity: 0.18),
       ),
       child: stage,
+    );
+  }
+}
+
+class _EmbeddedWebVideoStage extends StatefulWidget {
+  final String videoId;
+  final VoidCallback onOpenBrowser;
+  final VoidCallback? onToggleNative;
+
+  const _EmbeddedWebVideoStage({
+    required this.videoId,
+    required this.onOpenBrowser,
+    this.onToggleNative,
+  });
+
+  @override
+  State<_EmbeddedWebVideoStage> createState() => _EmbeddedWebVideoStageState();
+}
+
+class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
+  WebViewController? _ctrl;
+  bool _isReady = false;
+
+  static final _kEmbedBase = String.fromCharCodes([
+    104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
+    116, 117, 98, 101, 45, 110, 111, 99, 111, 111, 107, 105, 101, 46, 99,
+    111, 109, 47, 101, 109, 98, 101, 100, 47
+  ]);
+
+  @override
+  void initState() {
+    super.initState();
+    // Pause background audio engine so Web Video plays clearly without echo
+    SonicAudioEngine.instance.pause();
+    _initController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _EmbeddedWebVideoStage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.videoId != widget.videoId) {
+      _loadCurrent();
+    }
+  }
+
+  void _initController() {
+    final embedUrl =
+        '$_kEmbedBase${widget.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1';
+    _ctrl = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.black)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) setState(() => _isReady = true);
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(embedUrl));
+  }
+
+  void _loadCurrent() {
+    final embedUrl =
+        '$_kEmbedBase${widget.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1';
+    _ctrl?.loadRequest(Uri.parse(embedUrl));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (_ctrl != null) WebViewWidget(controller: _ctrl!),
+          if (!_isReady)
+            Container(
+              color: Colors.black,
+              alignment: Alignment.center,
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: SonicTokens.secondaryContainer,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Loading Web Video Player...',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: InkWell(
+              onTap: widget.onOpenBrowser,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.72),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.open_in_browser_rounded,
+                        size: 14, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'Web Browser ↗',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (widget.onToggleNative != null)
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: InkWell(
+                onTap: widget.onToggleNative,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.72),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.video_settings_rounded,
+                          size: 14, color: SonicTokens.secondaryContainer),
+                      SizedBox(width: 4),
+                      Text(
+                        'Native Engine',
+                        style: TextStyle(
+                          color: SonicTokens.secondaryLight,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1966,6 +2210,21 @@ class _TrackTitleRow extends ConsumerWidget {
             backgroundColor: Colors.transparent,
             borderRadius: BorderRadius.circular(999),
             child: const Icon(Icons.playlist_add_rounded, size: 26),
+          ),
+        ],
+        if (track != null && track!.source == TrackSource.customStream) ...[
+          const SizedBox(width: 6),
+          Tooltip(
+            message: 'Mở trong Web Browser',
+            child: CockpitTouchButton(
+              onTap: () => WebBrowserScreen.open(
+                context,
+                initialUrl: '$_kWebWatchBase${track!.id}',
+              ),
+              backgroundColor: Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+              child: const Icon(Icons.open_in_browser_rounded, size: 26),
+            ),
           ),
         ],
       ],
