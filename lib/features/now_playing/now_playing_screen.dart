@@ -102,17 +102,41 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       }
     }
 
-    return Scaffold(
-      backgroundColor: SonicTokens.surfaceBase,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 900;
-            if (isWide) {
-              return _buildWidescreenCockpit(context, snap, settings, track);
-            }
-            return _buildMobilePlayer(context, snap, settings, track);
-          },
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.space): () =>
+            SonicAudioEngine.instance.togglePlayPause(),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+            SonicAudioEngine.instance.seekRelative(const Duration(seconds: -10)),
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+            SonicAudioEngine.instance.seekRelative(const Duration(seconds: 10)),
+        const SingleActivator(LogicalKeyboardKey.keyF): () {
+          final vc = SonicAudioEngine.instance.videoController;
+          if (snap.isVideoMode && vc != null) {
+            _FullscreenVideoPage.open(context, vc);
+          }
+        },
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: SonicTokens.surfaceBase,
+          body: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 900;
+                if (isWide) {
+                  return _buildWidescreenCockpit(context, snap, settings, track);
+                }
+                return _buildMobilePlayer(context, snap, settings, track);
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -247,6 +271,33 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 isVideo: snap.isVideoMode,
                 onChanged: (v) => _onToggleVideoMode(v, snap),
               ),
+              if (snap.isVideoMode &&
+                  SonicAudioEngine.instance.videoController != null) ...[
+                const SizedBox(width: 14),
+                CockpitTouchButton(
+                  onTap: () => _FullscreenVideoPage.open(
+                    context,
+                    SonicAudioEngine.instance.videoController!,
+                  ),
+                  backgroundColor: SonicTokens.surfaceElevated,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.fullscreen_rounded,
+                          size: 20, color: SonicTokens.secondaryContainer),
+                      SizedBox(width: 6),
+                      Text(
+                        'Theater Fullscreen',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Spacer(),
               Container(
                 padding:
@@ -479,11 +530,14 @@ class _MediaStageBox extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Video(
-                      controller: vc,
-                      controls: NoVideoControls,
-                      pauseUponEnteringBackgroundMode: false,
-                      wakelock: false,
+                    GestureDetector(
+                      onDoubleTap: () => _FullscreenVideoPage.open(context, vc),
+                      child: Video(
+                        controller: vc,
+                        controls: NoVideoControls,
+                        pauseUponEnteringBackgroundMode: false,
+                        wakelock: false,
+                      ),
                     ),
                     ValueListenableBuilder<Rect?>(
                       valueListenable: vc.rect,
@@ -742,12 +796,38 @@ class _FullscreenVideoPageState extends ConsumerState<_FullscreenVideoPage> {
         : 1.0;
     final clampedPos = posMs.clamp(0.0, durMs);
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _toggleControls,
-        child: Stack(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.space): () =>
+            SonicAudioEngine.instance.togglePlayPause(),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+            SonicAudioEngine.instance.seekRelative(const Duration(seconds: -10)),
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+            SonicAudioEngine.instance.seekRelative(const Duration(seconds: 10)),
+        const SingleActivator(LogicalKeyboardKey.keyF): () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        },
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _toggleControls,
+            onDoubleTap: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: Stack(
           fit: StackFit.expand,
           children: [
             // Center Fullscreen Video
@@ -1046,6 +1126,8 @@ class _FullscreenVideoPageState extends ConsumerState<_FullscreenVideoPage> {
             ),
           ],
         ),
+      ),
+      ),
       ),
     );
   }

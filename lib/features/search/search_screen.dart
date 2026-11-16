@@ -448,6 +448,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   },
                 ),
               ]
+              else if (isWide) ...[
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: constraints.maxWidth >= 1100 ? 3 : 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.25,
+                  ),
+                  itemCount: filteredResults.length,
+                  itemBuilder: (_, i) => _SearchGridCard(track: filteredResults[i]),
+                ),
+                if (search.isLoadingMore)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    ),
+                  ),
+              ]
               else ...[
                 ...filteredResults.map((track) {
                   return Padding(
@@ -845,6 +870,119 @@ class _VoiceShortcutChip extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchGridCard extends ConsumerWidget {
+  final MediaTrack track;
+  const _SearchGridCard({required this.track});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return InkWell(
+      onTap: () => playTrackAndOpenMobile(context, ref, track),
+      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+      child: Container(
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceCard,
+          borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+          border: Border.all(color: SonicTokens.glassBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  TrackArtwork(url: track.thumbnailUrl, radius: 0),
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: SonicTokens.secondaryBlue.withOpacity(0.92),
+                        boxShadow: SonicTokens.blueGlow(opacity: 0.35),
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                  if (track.durationSeconds > 0)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.75),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          track.formattedDuration,
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          track.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: SonicTokens.textSecondary,
+                                fontSize: 11,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    iconSize: 20,
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Add to Playlist',
+                    icon: const Icon(Icons.playlist_add_rounded,
+                        color: SonicTokens.textSecondary),
+                    onPressed: () => AddToPlaylistSheet.show(
+                      context,
+                      track,
+                      preferNowPlaying: true,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -846,7 +846,7 @@ class _ResumeTileCard extends StatelessWidget {
             if (showProgress)
               LinearProgressIndicator(
                 value: track.progressRatio,
-                minHeight: 4,
+                minHeight: 5,
                 backgroundColor: SonicTokens.surfaceHighest,
                 color: SonicTokens.primaryRed,
               ),
@@ -859,14 +859,25 @@ class _ResumeTileCard extends StatelessWidget {
                     track.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${track.artist} • ${track.qualityBadge}',
+                    showProgress
+                        ? 'Resumes at ${track.formattedResumePosition} • ${track.artist}'
+                        : '${track.artist} • ${track.qualityBadge}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: showProgress
+                              ? SonicTokens.secondaryLight
+                              : SonicTokens.textSecondary,
+                          fontWeight: showProgress
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
                   ),
                 ],
               ),

@@ -323,14 +323,14 @@ class _TopCockpitHeader extends ConsumerWidget {
                     const SizedBox(width: 6),
                     Text(
                       activeInst != null
-                          ? (activeInst.isHealthy
-                              ? '${activeInst.name} ${activeInst.latencyMs ?? 0}ms'
-                              : '${activeInst.name} (${activeInst.tier})')
+                          ? (activeInst.isHealthy ? 'Connected' : 'Connection Warning')
                           : 'Local & Cloud Ready',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: SonicTokens.textSecondary,
+                        color: activeInst != null && activeInst.isHealthy
+                            ? SonicTokens.successGreen
+                            : SonicTokens.textSecondary,
                       ),
                     ),
                   ],
@@ -398,26 +398,56 @@ class _TopCockpitHeader extends ConsumerWidget {
                   color: SonicTokens.textSecondary),
             ),
           ],
-          const SizedBox(width: 4),
+          if (!isMobileMode) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: SonicTokens.surfaceContainer,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: SonicTokens.glassBorder),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified_user_rounded,
+                      size: 14, color: SonicTokens.secondaryContainer),
+                  SizedBox(width: 5),
+                  Text(
+                    'Free Edition',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: SonicTokens.secondaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
           InkWell(
             onTap: onProfile,
             borderRadius: BorderRadius.circular(999),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: (isMobileMode && activeTab == 2)
-                    ? SonicTokens.secondaryBlue.withOpacity(0.28)
-                    : SonicTokens.surfaceElevated,
-                border: Border.all(
+            child: Tooltip(
+              message: 'Driver Cockpit • Free Edition (All Unlocked)',
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                   color: (isMobileMode && activeTab == 2)
-                      ? SonicTokens.secondaryContainer
-                      : SonicTokens.glassBorder,
+                      ? SonicTokens.secondaryBlue.withOpacity(0.28)
+                      : SonicTokens.surfaceElevated,
+                  border: Border.all(
+                    color: (isMobileMode && activeTab == 2)
+                        ? SonicTokens.secondaryContainer
+                        : SonicTokens.glassBorder,
+                  ),
                 ),
+                child: const Icon(Icons.person_outline_rounded,
+                    color: SonicTokens.primaryTint, size: 22),
               ),
-              child: const Icon(Icons.person_outline_rounded,
-                  color: SonicTokens.primaryTint, size: 22),
             ),
           ),
         ],
@@ -695,52 +725,59 @@ class _DockedDesktopMiniPlayer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Left: Track Info + Source Badge
-          SizedBox(
-            width: 280,
-            child: Row(
-              children: [
-                TrackArtwork(
-                  url: track?.thumbnailUrl ?? '',
-                  width: 54,
-                  height: 54,
-                  fallbackIcon: Icons.album_rounded,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        track?.title ?? 'Cockpit Stream Deck',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
+          // Left: Track Info + Source Badge (Click to open full player)
+          InkWell(
+            onTap: onOpenFull,
+            borderRadius: BorderRadius.circular(12),
+            child: Tooltip(
+              message: 'Open Full Player (F)',
+              child: SizedBox(
+                width: 280,
+                child: Row(
+                  children: [
+                    TrackArtwork(
+                      url: track?.thumbnailUrl ?? '',
+                      width: 54,
+                      height: 54,
+                      fallbackIcon: Icons.album_rounded,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (track != null)
-                            SourceBadgeChip(source: track.source),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              track?.artist ?? 'High-Fidelity Audio',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  color: SonicTokens.textSecondary),
-                            ),
+                          Text(
+                            track?.title ?? 'Cockpit Stream Deck',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 15),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              if (track != null)
+                                SourceBadgeChip(source: track.source),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  track?.artist ?? 'High-Fidelity Audio',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: SonicTokens.textSecondary),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           // Center: Interactive Timeline Scrubber
@@ -773,55 +810,67 @@ class _DockedDesktopMiniPlayer extends StatelessWidget {
           // Right: Controls + Full Player Button
           Row(
             children: [
-              CockpitTouchButton(
-                minSize: 48,
-                backgroundColor: Colors.transparent,
-                onTap: () => SonicAudioEngine.instance.skipToPrevious(),
-                child: const Icon(Icons.skip_previous_rounded, size: 28),
+              Tooltip(
+                message: 'Previous (← / Media Prev)',
+                child: CockpitTouchButton(
+                  minSize: 48,
+                  backgroundColor: Colors.transparent,
+                  onTap: () => SonicAudioEngine.instance.skipToPrevious(),
+                  child: const Icon(Icons.skip_previous_rounded, size: 28),
+                ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                onTap: () => SonicAudioEngine.instance.togglePlayPause(),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: SonicTokens.primaryContainer,
-                    boxShadow: SonicTokens.crimsonGlow(opacity: 0.4),
-                  ),
-                  child: Icon(
-                    snap.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 32,
+              Tooltip(
+                message: snap.isPlaying ? 'Pause (Space)' : 'Play (Space)',
+                child: InkWell(
+                  onTap: () => SonicAudioEngine.instance.togglePlayPause(),
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: SonicTokens.primaryContainer,
+                      boxShadow: SonicTokens.crimsonGlow(opacity: 0.4),
+                    ),
+                    child: Icon(
+                      snap.isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              CockpitTouchButton(
-                minSize: 48,
-                backgroundColor: Colors.transparent,
-                onTap: () => SonicAudioEngine.instance.skipToNext(),
-                child: const Icon(Icons.skip_next_rounded, size: 28),
+              Tooltip(
+                message: 'Next (→ / Media Next)',
+                child: CockpitTouchButton(
+                  minSize: 48,
+                  backgroundColor: Colors.transparent,
+                  onTap: () => SonicAudioEngine.instance.skipToNext(),
+                  child: const Icon(Icons.skip_next_rounded, size: 28),
+                ),
               ),
               const SizedBox(width: 14),
               SizedBox(
                 height: 46,
-                child: OutlinedButton.icon(
-                  onPressed: onOpenFull,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: SonicTokens.glassBorder),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
+                child: Tooltip(
+                  message: 'Expand Full Cockpit Player (F)',
+                  child: OutlinedButton.icon(
+                    onPressed: onOpenFull,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: SonicTokens.glassBorder),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
+                    icon: const Icon(Icons.open_in_full_rounded,
+                        size: 16, color: SonicTokens.secondaryContainer),
+                    label: const Text('Full Player ↗'),
                   ),
-                  icon: const Icon(Icons.open_in_full_rounded,
-                      size: 16, color: SonicTokens.secondaryContainer),
-                  label: const Text('Full Player ↗'),
                 ),
               ),
             ],
