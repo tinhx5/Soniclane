@@ -164,9 +164,20 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                             // 50% Right Side: Playlist / Search / Home / Library Page
                                             Expanded(
                                               flex: 1,
-                                              child: IndexedStack(
-                                                index: safeDesktopIdx,
-                                                children: pages,
+                                              child: Container(
+                                                decoration: const BoxDecoration(
+                                                  border: Border(
+                                                    left: BorderSide(
+                                                      color: SonicTokens.divider,
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                ),
+                                                padding: const EdgeInsets.only(left: 6),
+                                                child: IndexedStack(
+                                                  index: safeDesktopIdx,
+                                                  children: pages,
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -490,6 +501,7 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
                           fontSize: 14,
                         ),
                       ),
+                      textInputAction: TextInputAction.search,
                       onSubmitted: _triggerSearch,
                       onTap: () {
                         if (widget.activeTab != 1) {

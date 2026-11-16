@@ -51,7 +51,8 @@ class HomeScreen extends ConsumerWidget {
       onRefresh: () => ref.read(homeFeedProvider.notifier).refresh(),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 700;
+          final isCockpit = MediaQuery.sizeOf(context).width >= 700;
+          final isWide = constraints.maxWidth >= 700 || isCockpit;
           return ListView(
             padding: EdgeInsets.fromLTRB(
               isWide ? 24 : 16,
@@ -110,7 +111,9 @@ class HomeScreen extends ConsumerWidget {
                 else
                   _RecommendationsGrid(
                     tracks: filteredRecs,
-                    columns: 4,
+                    columns: constraints.maxWidth >= 950
+                        ? 4
+                        : (constraints.maxWidth >= 600 ? 3 : 2),
                   ),
               ] else ...[
                 // Mobile Portrait Layout (Resume only shown once per app launch)
@@ -872,31 +875,27 @@ class _RecommendationsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final dynamicCols = constraints.maxWidth >= 950
-            ? 4
-            : (constraints.maxWidth >= 600 ? 3 : 2);
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: dynamicCols,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            childAspectRatio: dynamicCols >= 4 ? 1.10 : 1.18,
-          ),
-          itemCount: tracks.length,
-          itemBuilder: (_, i) => _FeedMediaCard(track: tracks[i]),
-        );
-      },
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: columns >= 4 ? 1.10 : 1.18,
+      ),
+      itemCount: tracks.length,
+      itemBuilder: (_, i) => _FeedMediaCard(
+        key: ValueKey(tracks[i].id),
+        track: tracks[i],
+      ),
     );
   }
 }
 
 class _FeedMediaCard extends ConsumerWidget {
   final MediaTrack track;
-  const _FeedMediaCard({required this.track});
+  const _FeedMediaCard({super.key, required this.track});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

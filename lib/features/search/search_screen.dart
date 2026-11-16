@@ -121,7 +121,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 700;
+        final isCockpit = MediaQuery.sizeOf(context).width >= 700;
+        final isWide = constraints.maxWidth >= 700 || isCockpit;
         return GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.translucent,
@@ -131,168 +132,170 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 controller: _scrollCtrl,
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
-                  isWide ? 24 : 16,
-                  16,
-                  isWide ? 24 : 16,
+                  isWide ? 20 : 16,
+                  isCockpit ? 12 : 16,
+                  isWide ? 20 : 16,
                   108,
                 ),
           children: [
-            // Search Bar + Paste Link + Glowing Voice Mic
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: SonicTokens.minTouchTarget,
-                    decoration: BoxDecoration(
-                      color: SonicTokens.surfaceHigh,
-                      borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
-                      border: Border.all(color: SonicTokens.glassBorder),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search_rounded,
-                            color: SonicTokens.secondaryContainer, size: 24),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchCtrl,
-                            focusNode: _searchFocusNode,
-                            style: const TextStyle(fontSize: 15),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              filled: false,
-                              contentPadding: EdgeInsets.zero,
-                              hintText: 'Search songs, artists, or paste link...',
+            // Search Bar + Paste Link + Glowing Voice Mic (hidden in Cockpit mode as top header already hosts it)
+            if (!isCockpit) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: SonicTokens.minTouchTarget,
+                      decoration: BoxDecoration(
+                        color: SonicTokens.surfaceHigh,
+                        borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
+                        border: Border.all(color: SonicTokens.glassBorder),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search_rounded,
+                              color: SonicTokens.secondaryContainer, size: 24),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchCtrl,
+                              focusNode: _searchFocusNode,
+                              style: const TextStyle(fontSize: 15),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                filled: false,
+                                contentPadding: EdgeInsets.zero,
+                                hintText: 'Search songs, artists, or paste link...',
+                              ),
+                              onSubmitted: _runQuery,
                             ),
-                            onSubmitted: _runQuery,
                           ),
-                        ),
-                        if (_searchCtrl.text.isNotEmpty ||
-                            search.query.isNotEmpty)
+                          if (_searchCtrl.text.isNotEmpty ||
+                              search.query.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                ref.read(searchProvider.notifier).executeSearch('');
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CockpitTouchButton(
+                    onTap: () => ImportUrlDialog.show(context),
+                    backgroundColor: SonicTokens.surfaceHigh,
+                    child: const Icon(Icons.link_rounded,
+                        color: SonicTokens.secondaryLight, size: 24),
+                  ),
+                  const SizedBox(width: 8),
+                  CockpitTouchButton(
+                    onTap: () async {
+                      final opening = !search.isVoiceHudOpen;
+                      ref.read(searchProvider.notifier).setVoiceHud(opening);
+                      if (opening) {
+                        await VoiceSearchService.instance.startListening(
+                          onFinalResult: (spoken) {
+                            ref.read(searchProvider.notifier).setVoiceHud(false);
+                            _runQuery(spoken);
+                          },
+                        );
+                      } else {
+                        await VoiceSearchService.instance.stopListening();
+                      }
+                    },
+                    backgroundColor: SonicTokens.secondaryContainer,
+                    glow: SonicTokens.cyanGlow(opacity: 0.35),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.mic_rounded,
+                              color: SonicTokens.surfaceBase, size: 26),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Voice HUD Drawer with live Speech-to-Text
+              if (search.isVoiceHudOpen) ...[
+                const SizedBox(height: 14),
+                StreamBuilder<VoiceHudState>(
+                  stream: VoiceSearchService.instance.stream,
+                  initialData: VoiceSearchService.instance.state,
+                  builder: (context, voiceSnap) {
+                    final voice =
+                        voiceSnap.data ?? VoiceSearchService.instance.state;
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: SonicTokens.surfaceElevated,
+                        borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+                        border: Border.all(color: SonicTokens.activeBorderCyan),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: voice.isListening
+                                  ? SonicTokens.primaryRed
+                                  : SonicTokens.secondaryContainer,
+                            ),
+                            child: const Icon(Icons.graphic_eq_rounded,
+                                color: Colors.white),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  voice.isListening
+                                      ? 'LISTENING IN COCKPIT...'
+                                      : 'VOICE COCKPIT READY',
+                                  style: const TextStyle(
+                                    color: SonicTokens.secondaryContainer,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.9,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  voice.recognizedText.isNotEmpty
+                                      ? '"${voice.recognizedText}"'
+                                      : (voice.errorMessage ??
+                                          'Speak a song title or tap a shortcut below'),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
                           IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 20),
+                            icon: const Icon(Icons.close_rounded),
                             onPressed: () {
-                              _searchCtrl.clear();
-                              ref.read(searchProvider.notifier).executeSearch('');
+                              VoiceSearchService.instance.stopListening();
+                              ref
+                                  .read(searchProvider.notifier)
+                                  .setVoiceHud(false);
                             },
                           ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                CockpitTouchButton(
-                  onTap: () => ImportUrlDialog.show(context),
-                  backgroundColor: SonicTokens.surfaceHigh,
-                  child: const Icon(Icons.link_rounded,
-                      color: SonicTokens.secondaryLight, size: 24),
-                ),
-                const SizedBox(width: 8),
-                CockpitTouchButton(
-                  onTap: () async {
-                    final opening = !search.isVoiceHudOpen;
-                    ref.read(searchProvider.notifier).setVoiceHud(opening);
-                    if (opening) {
-                      await VoiceSearchService.instance.startListening(
-                        onFinalResult: (spoken) {
-                          ref.read(searchProvider.notifier).setVoiceHud(false);
-                          _runQuery(spoken);
-                        },
-                      );
-                    } else {
-                      await VoiceSearchService.instance.stopListening();
-                    }
+                        ],
+                      ),
+                    );
                   },
-                  backgroundColor: SonicTokens.secondaryContainer,
-                  glow: SonicTokens.cyanGlow(opacity: 0.35),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      children: [
-                        Icon(Icons.mic_rounded,
-                            color: SonicTokens.surfaceBase, size: 26),
-                      ],
-                    ),
-                  ),
                 ),
               ],
-            ),
-
-            // Voice HUD Drawer with live Speech-to-Text
-            if (search.isVoiceHudOpen) ...[
-              const SizedBox(height: 14),
-              StreamBuilder<VoiceHudState>(
-                stream: VoiceSearchService.instance.stream,
-                initialData: VoiceSearchService.instance.state,
-                builder: (context, voiceSnap) {
-                  final voice =
-                      voiceSnap.data ?? VoiceSearchService.instance.state;
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: SonicTokens.surfaceElevated,
-                      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-                      border: Border.all(color: SonicTokens.activeBorderCyan),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: voice.isListening
-                                ? SonicTokens.primaryRed
-                                : SonicTokens.secondaryContainer,
-                          ),
-                          child: const Icon(Icons.graphic_eq_rounded,
-                              color: Colors.white),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                voice.isListening
-                                    ? 'LISTENING IN COCKPIT...'
-                                    : 'VOICE COCKPIT READY',
-                                style: const TextStyle(
-                                  color: SonicTokens.secondaryContainer,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.9,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                voice.recognizedText.isNotEmpty
-                                    ? '"${voice.recognizedText}"'
-                                    : (voice.errorMessage ??
-                                        'Speak a song title or tap a shortcut below'),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () {
-                            VoiceSearchService.instance.stopListening();
-                            ref
-                                .read(searchProvider.notifier)
-                                .setVoiceHud(false);
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
             ],
             const SizedBox(height: 16),
 
@@ -346,24 +349,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 padding: EdgeInsets.all(40),
                 child: Center(child: CircularProgressIndicator()),
               )
-            else if (search.query.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Results (${filteredResults.length})',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      ref.read(searchProvider.notifier).executeSearch('');
-                    },
-                    child: const Text('Back to Discovery'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
+            else if (filteredResults.isNotEmpty ||
+                search.results.isNotEmpty ||
+                search.query.isNotEmpty) ...[
+              if (!isCockpit) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Results (${filteredResults.length})',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        ref.read(searchProvider.notifier).executeSearch('');
+                      },
+                      child: const Text('Back to Discovery'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
               if (filteredResults.isEmpty) ...[
                 Builder(
                   builder: (context) {
@@ -453,18 +460,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   },
                 ),
               ]
-              else if (isWide) ...[
+              else if (isCockpit || isWide) ...[
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: constraints.maxWidth >= 1100 ? 3 : 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.25,
+                    crossAxisCount: constraints.maxWidth >= 950 ? 3 : 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 1.18,
                   ),
                   itemCount: filteredResults.length,
-                  itemBuilder: (_, i) => _SearchGridCard(track: filteredResults[i]),
+                  itemBuilder: (_, i) => _SearchGridCard(
+                    key: ValueKey(filteredResults[i].id),
+                    track: filteredResults[i],
+                  ),
                 ),
                 if (search.isLoadingMore)
                   const Padding(
@@ -483,6 +493,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: ListTile(
+                      key: ValueKey(track.id),
                       tileColor: SonicTokens.surfaceCard,
                       shape: RoundedRectangleBorder(
                         borderRadius:
@@ -538,6 +549,50 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                   ),
               ],
+            ] else if (isCockpit) ...[
+              // Cockpit mode with no search yet: Show smart recommended tracks directly (clean 2-column grid, no landing page)
+              Builder(
+                builder: (context) {
+                  final recs = ref.watch(homeFeedProvider).recommendations;
+                  final displayList = _filterBySource(recs, search.sourceFilter);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded,
+                                size: 18, color: SonicTokens.secondaryContainer),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Gợi ý phát (${displayList.length})',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: constraints.maxWidth >= 950 ? 3 : 2,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                          childAspectRatio: 1.18,
+                        ),
+                        itemCount: displayList.length,
+                        itemBuilder: (_, i) => _SearchGridCard(
+                          key: ValueKey(displayList[i].id),
+                          track: displayList[i],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ] else ...[
               // Recent In-Cabin Searches
               if (search.recentSearches.isNotEmpty) ...[
@@ -887,7 +942,7 @@ class _VoiceShortcutChip extends StatelessWidget {
 
 class _SearchGridCard extends ConsumerWidget {
   final MediaTrack track;
-  const _SearchGridCard({required this.track});
+  const _SearchGridCard({super.key, required this.track});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

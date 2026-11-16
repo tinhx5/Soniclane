@@ -484,13 +484,11 @@ class SearchNotifier extends StateNotifier<SearchState> {
   Future<void> executeSearch(String rawQuery) async {
     final q = rawQuery.trim();
     if (q.isEmpty) {
+      // Retain previous search results so user never loses their browsing list in split/cockpit mode
       state = state.copyWith(
         query: '',
-        results: [],
         isSearching: false,
         isLoadingMore: false,
-        nextPage: 1,
-        hasMore: false,
       );
       return;
     }

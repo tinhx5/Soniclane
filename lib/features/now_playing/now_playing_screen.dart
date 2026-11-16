@@ -622,29 +622,6 @@ class CockpitDetailPane extends ConsumerWidget {
                     snap: snap,
                     centerPlaySize: 58,
                   ),
-                  const SizedBox(height: 14),
-                  _AudioUtilityStrip(snap: snap),
-                  const SizedBox(height: 14),
-                  Center(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: SonicTokens.secondaryContainer,
-                        side: const BorderSide(
-                            color: SonicTokens.activeBorderCyan),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: onOpenFullscreen,
-                      icon: const Icon(Icons.fullscreen_rounded, size: 20),
-                      label: const Text(
-                        'Phóng to toàn màn hình',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -734,15 +711,48 @@ class _MediaStageBox extends StatefulWidget {
 
 class _MediaStageBoxState extends State<_MediaStageBox> {
   bool _useWebPlayer = false;
+  Timer? _webFallbackTimer;
 
   bool get _isMobileDevice =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   @override
+  void initState() {
+    super.initState();
+    _armFallbackTimer();
+  }
+
+  @override
   void didUpdateWidget(covariant _MediaStageBox oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.track?.id != widget.track?.id) {
+    if (oldWidget.track?.id != widget.track?.id ||
+        oldWidget.isVideoMode != widget.isVideoMode) {
       _useWebPlayer = false;
+      _armFallbackTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _webFallbackTimer?.cancel();
+    super.dispose();
+  }
+
+  void _armFallbackTimer() {
+    _webFallbackTimer?.cancel();
+    final isCustomStream =
+        widget.track != null && widget.track!.source == TrackSource.customStream;
+    if (widget.isVideoMode && _isMobileDevice && isCustomStream) {
+      // If native stream stalls or fails to render video within 2.2s, auto-switch to Web Player
+      _webFallbackTimer = Timer(const Duration(milliseconds: 2200), () {
+        if (!mounted || _useWebPlayer) return;
+        final vc = SonicAudioEngine.instance.videoController;
+        final rect = vc?.rect.value;
+        final isReady = rect != null && rect.width > 1 && rect.height > 1;
+        if (!isReady) {
+          setState(() => _useWebPlayer = true);
+        }
+      });
     }
   }
 
@@ -994,8 +1004,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   static final _kEmbedBase = String.fromCharCodes([
     104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
-    116, 117, 98, 101, 45, 110, 111, 99, 111, 111, 107, 105, 101, 46, 99,
-    111, 109, 47, 101, 109, 98, 101, 100, 47
+    116, 117, 98, 101, 46, 99, 111, 109, 47, 101, 109, 98, 101, 100, 47
   ]);
 
   @override
@@ -1019,6 +1028,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
         '$_kEmbedBase${widget.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1';
     _ctrl = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setUserAgent('Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
       ..setBackgroundColor(Colors.black)
       ..setNavigationDelegate(
         NavigationDelegate(

@@ -30,6 +30,8 @@ class TrackArtwork extends StatelessWidget {
             ? Image.network(
                 url,
                 fit: BoxFit.cover,
+                gaplessPlayback: true,
+                filterQuality: FilterQuality.medium,
                 errorBuilder: (_, __, ___) => _FallbackArt(icon: fallbackIcon),
               )
             : _FallbackArt(icon: fallbackIcon),
