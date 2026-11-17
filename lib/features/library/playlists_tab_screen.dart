@@ -26,6 +26,7 @@ class PlaylistsTabScreen extends ConsumerWidget {
               : (constraints.maxWidth >= 850 ? 3 : 2);
 
           return CustomScrollView(
+            physics: const ClampingScrollPhysics(),
             slivers: [
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(

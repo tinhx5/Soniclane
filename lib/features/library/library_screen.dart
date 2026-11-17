@@ -134,6 +134,7 @@ class LibraryScreen extends ConsumerWidget {
 
           // Mobile Portrait Layout matching Mobile_library_storage_hub Stitch
           return ListView(
+            physics: const ClampingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 108),
             children: [
               _LibraryTopBar(sortBy: library.sortBy),

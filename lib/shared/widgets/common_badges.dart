@@ -31,7 +31,9 @@ class TrackArtwork extends StatelessWidget {
                 url,
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
-                filterQuality: FilterQuality.medium,
+                filterQuality: FilterQuality.low,
+                cacheWidth: 400,
+                cacheHeight: 225,
                 errorBuilder: (_, __, ___) => _FallbackArt(icon: fallbackIcon),
               )
             : _FallbackArt(icon: fallbackIcon),

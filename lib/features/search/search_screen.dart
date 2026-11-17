@@ -130,6 +130,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             children: [
               ListView(
                 controller: _scrollCtrl,
+                physics: const ClampingScrollPhysics(),
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                   isWide ? 20 : 16,

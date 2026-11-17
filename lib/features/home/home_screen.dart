@@ -54,6 +54,7 @@ class HomeScreen extends ConsumerWidget {
           final isCockpit = MediaQuery.sizeOf(context).width >= 700;
           final isWide = constraints.maxWidth >= 700 || isCockpit;
           return ListView(
+            physics: const ClampingScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
               isWide ? 24 : 16,
               14,
