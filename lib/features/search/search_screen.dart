@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/media_models.dart';
 import '../../core/providers/sonic_providers.dart';
@@ -154,23 +155,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: Row(
                         children: [
-                          const Icon(Icons.search_rounded,
-                              color: SonicTokens.secondaryContainer, size: 24),
-                          const SizedBox(width: 10),
+                          InkWell(
+                            onTap: () => _runQuery(_searchCtrl.text),
+                            borderRadius: BorderRadius.circular(999),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(Icons.search_rounded,
+                                  color: SonicTokens.secondaryContainer, size: 24),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
-                            child: TextField(
-                              controller: _searchCtrl,
-                              focusNode: _searchFocusNode,
-                              style: const TextStyle(fontSize: 15),
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                filled: false,
-                                contentPadding: EdgeInsets.zero,
-                                hintText: 'Search songs, artists, or paste link...',
+                            child: Focus(
+                              onKeyEvent: (node, event) {
+                                if (event is KeyDownEvent &&
+                                    (event.logicalKey == LogicalKeyboardKey.enter ||
+                                     event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                                  _runQuery(_searchCtrl.text);
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: TextField(
+                                controller: _searchCtrl,
+                                focusNode: _searchFocusNode,
+                                keyboardType: TextInputType.text,
+                                textInputAction: TextInputAction.search,
+                                style: const TextStyle(fontSize: 15),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  filled: false,
+                                  contentPadding: EdgeInsets.zero,
+                                  hintText: 'Search songs, artists, or paste link...',
+                                ),
+                                onSubmitted: _runQuery,
+                                onEditingComplete: () => _runQuery(_searchCtrl.text),
                               ),
-                              onSubmitted: _runQuery,
                             ),
                           ),
                           if (_searchCtrl.text.isNotEmpty ||

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/sonic_providers.dart';
 import '../../core/services/voice_search_service.dart';
@@ -33,18 +34,25 @@ class TopCockpitHeader extends ConsumerStatefulWidget {
 
 class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
   final _searchCtrl = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
-  void _triggerSearch(String query) {
+  void _triggerSearch([String? query]) {
+    FocusScope.of(context).unfocus();
+    _searchFocusNode.unfocus();
+    final q = (query != null && query.trim().isNotEmpty)
+        ? query.trim()
+        : _searchCtrl.text.trim();
     if (widget.activeTab != 1) {
       ref.read(activeTabProvider.notifier).state = 1;
     }
-    ref.read(searchProvider.notifier).executeSearch(query);
+    ref.read(searchProvider.notifier).executeSearch(q);
   }
 
   Future<void> _triggerVoiceSearch() async {
@@ -67,6 +75,12 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(searchFocusTriggerProvider, (prev, next) {
+      if (next > 0) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+
     final searchQuery = ref.watch(searchProvider).query;
     if (_searchCtrl.text.isEmpty && searchQuery.isNotEmpty) {
       _searchCtrl.text = searchQuery;
@@ -112,35 +126,56 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.search_rounded,
-                        color: SonicTokens.secondaryContainer,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchCtrl,
-                          style: const TextStyle(fontSize: 12.5),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
-                            hintText: 'Search songs, artists...',
-                            hintStyle: TextStyle(
-                              color: SonicTokens.textTertiary,
-                              fontSize: 12.5,
-                            ),
+                      InkWell(
+                        onTap: () => _triggerSearch(),
+                        borderRadius: BorderRadius.circular(999),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: SonicTokens.secondaryContainer,
+                            size: 16,
                           ),
-                          textInputAction: TextInputAction.search,
-                          onSubmitted: _triggerSearch,
-                          onTap: () {
-                            if (widget.activeTab != 1) {
-                              ref.read(activeTabProvider.notifier).state = 1;
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Focus(
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent &&
+                                (event.logicalKey == LogicalKeyboardKey.enter ||
+                                 event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                              _triggerSearch();
+                              return KeyEventResult.handled;
                             }
+                            return KeyEventResult.ignored;
                           },
+                          child: TextField(
+                            controller: _searchCtrl,
+                            focusNode: _searchFocusNode,
+                            keyboardType: TextInputType.text,
+                            textInputAction: TextInputAction.search,
+                            style: const TextStyle(fontSize: 12.5),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                              contentPadding: EdgeInsets.zero,
+                              hintText: 'Search songs, artists...',
+                              hintStyle: TextStyle(
+                                color: SonicTokens.textTertiary,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            onSubmitted: (val) => _triggerSearch(val),
+                            onEditingComplete: () => _triggerSearch(),
+                            onTap: () {
+                              if (widget.activeTab != 1) {
+                                ref.read(activeTabProvider.notifier).state = 1;
+                              }
+                            },
+                          ),
                         ),
                       ),
                       if (_searchCtrl.text.isNotEmpty)
@@ -219,35 +254,56 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.search_rounded,
-                    color: SonicTokens.secondaryContainer,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchCtrl,
-                      style: const TextStyle(fontSize: 13),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: 'Search songs, artists, playlists...',
-                        hintStyle: TextStyle(
-                          color: SonicTokens.textTertiary,
-                          fontSize: 13,
-                        ),
+                  InkWell(
+                    onTap: () => _triggerSearch(),
+                    borderRadius: BorderRadius.circular(999),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.search_rounded,
+                        color: SonicTokens.secondaryContainer,
+                        size: 18,
                       ),
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: _triggerSearch,
-                      onTap: () {
-                        if (widget.activeTab != 1) {
-                          ref.read(activeTabProvider.notifier).state = 1;
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Focus(
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent &&
+                            (event.logicalKey == LogicalKeyboardKey.enter ||
+                             event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                          _triggerSearch();
+                          return KeyEventResult.handled;
                         }
+                        return KeyEventResult.ignored;
                       },
+                      child: TextField(
+                        controller: _searchCtrl,
+                        focusNode: _searchFocusNode,
+                        keyboardType: TextInputType.text,
+                        textInputAction: TextInputAction.search,
+                        style: const TextStyle(fontSize: 13),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          contentPadding: EdgeInsets.zero,
+                          hintText: 'Search songs, artists, playlists...',
+                          hintStyle: TextStyle(
+                            color: SonicTokens.textTertiary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        onSubmitted: (val) => _triggerSearch(val),
+                        onEditingComplete: () => _triggerSearch(),
+                        onTap: () {
+                          if (widget.activeTab != 1) {
+                            ref.read(activeTabProvider.notifier).state = 1;
+                          }
+                        },
+                      ),
                     ),
                   ),
                   if (_searchCtrl.text.isNotEmpty)

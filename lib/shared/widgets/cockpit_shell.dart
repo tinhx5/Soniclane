@@ -947,9 +947,11 @@ class CockpitSplitTrackList extends ConsumerWidget {
     String title = 'BÀI HÁT ĐỀ XUẤT';
     IconData icon = Icons.auto_awesome_rounded;
 
-    if (activeTab == 1 && search.results.isNotEmpty) {
+    final isSearchMode = activeTab == 1;
+
+    if (isSearchMode) {
       tracks = search.results;
-      title = 'KẾT QUẢ TÌM KIẾM';
+      title = search.isSearching ? 'ĐANG TÌM KIẾM...' : 'KẾT QUẢ TÌM KIẾM';
       icon = Icons.search_rounded;
     } else if (snap.queue.isNotEmpty) {
       tracks = snap.queue;
@@ -998,23 +1000,34 @@ class CockpitSplitTrackList extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: SonicTokens.surfaceElevated,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: SonicTokens.glassBorder),
-                  ),
-                  child: Text(
-                    '${tracks.length}',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: SonicTokens.textSecondary,
+                if (isSearchMode && search.isSearching) ...[
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: SonicTokens.secondaryContainer,
                     ),
                   ),
-                ),
+                ] else ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: SonicTokens.surfaceElevated,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: SonicTokens.glassBorder),
+                    ),
+                    child: Text(
+                      '${tracks.length}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: SonicTokens.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 IconButton(
                   tooltip: 'Đóng danh sách chia đôi',
@@ -1030,31 +1043,64 @@ class CockpitSplitTrackList extends ConsumerWidget {
           ),
           // Single-Track-Per-Row List
           Expanded(
-            child: tracks.isEmpty
+            child: isSearchMode && search.isSearching
                 ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.queue_music_rounded,
-                            size: 36,
-                            color: SonicTokens.textTertiary.withOpacity(0.5),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: SonicTokens.secondaryContainer,
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Chưa có bài hát trong danh sách',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: SonicTokens.textSecondary,
-                            ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          search.query.isNotEmpty
+                              ? 'Đang tìm kiếm "${search.query}"...'
+                              : 'Đang tìm kiếm...',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: SonicTokens.textSecondary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   )
-                : ListView.builder(
+                : (tracks.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isSearchMode
+                                    ? Icons.search_off_rounded
+                                    : Icons.queue_music_rounded,
+                                size: 36,
+                                color:
+                                    SonicTokens.textTertiary.withOpacity(0.5),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                isSearchMode
+                                    ? (search.query.isNotEmpty
+                                        ? 'Không tìm thấy kết quả cho "${search.query}"'
+                                        : 'Nhập từ khóa hoặc link để tìm kiếm')
+                                    : 'Chưa có bài hát trong danh sách',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: SonicTokens.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
                     physics: const ClampingScrollPhysics(),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -1192,7 +1238,7 @@ class CockpitSplitTrackList extends ConsumerWidget {
                         ),
                       );
                     },
-                  ),
+                  )),
           ),
         ],
       ),
