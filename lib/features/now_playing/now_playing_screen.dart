@@ -1010,7 +1010,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     // Pause background audio engine so Web Video plays clearly without echo
     SonicAudioEngine.instance.pause();
     _initController();
-    Future.delayed(const Duration(milliseconds: 3500), () {
+    Future.delayed(const Duration(milliseconds: 3000), () {
       if (mounted && !_isReady) {
         setState(() => _isReady = true);
       }
@@ -1025,11 +1025,25 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     }
     if (oldWidget.isPlaying != widget.isPlaying) {
       if (widget.isPlaying) {
-        _ctrl?.runJavaScript(
-            "try { document.querySelector('video')?.play(); } catch(e){}");
+        _ctrl?.runJavaScript('''
+          try {
+            var f = document.getElementById('sl-yt-frame');
+            if (f && f.contentWindow) {
+              f.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            }
+            document.querySelector('video')?.play();
+          } catch(e){}
+        ''');
       } else {
-        _ctrl?.runJavaScript(
-            "try { document.querySelector('video')?.pause(); } catch(e){}");
+        _ctrl?.runJavaScript('''
+          try {
+            var f = document.getElementById('sl-yt-frame');
+            if (f && f.contentWindow) {
+              f.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            }
+            document.querySelector('video')?.pause();
+          } catch(e){}
+        ''');
       }
     }
   }
@@ -1056,12 +1070,12 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (p) {
-            if (p > 50) _injectCleanerScript();
+            if (p > 60) _injectCleanerScript();
           },
           onPageStarted: (_) {
             _injectCleanerScript();
           },
-          onPageFinished: (_) {
+          onPageFinished: (url) {
             _injectCleanerScript();
             if (mounted) setState(() => _isReady = true);
           },
@@ -1079,12 +1093,66 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     _loadCurrent();
   }
 
+  String _buildIframeHtml(String videoId) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #player-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    iframe {
+      width: 100% !important;
+      height: 100% !important;
+      border: 0 !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="player-container">
+    <iframe
+      id="sl-yt-frame"
+      src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&enablejsapi=1&rel=0&modestbranding=1&controls=1&fs=1"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen>
+    </iframe>
+  </div>
+  <script>
+    window.addEventListener('message', function(e) {
+      try {
+        var msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (msg && msg.event === 'onError') {
+          window.location.href = 'https://m.youtube.com/watch?v=$videoId';
+        }
+      } catch (err) {}
+    });
+  </script>
+</body>
+</html>
+''';
+  }
+
   void _loadCurrent() {
     if (mounted) {
       setState(() => _isReady = false);
     }
-    _ctrl?.loadRequest(Uri.parse('$_kWebWatchBase${widget.videoId}'));
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    final html = _buildIframeHtml(widget.videoId);
+    _ctrl?.loadHtmlString(html, baseUrl: 'https://www.youtube.com');
+    Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted && !_isReady) {
         setState(() => _isReady = true);
       }
@@ -1094,73 +1162,64 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   Future<void> _injectCleanerScript() async {
     const js = """
       (function() {
-        function applyStyle() {
-          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
-          var el = document.getElementById('sl-clean-style');
-          if (!el) {
-            el = document.createElement('style');
-            el.id = 'sl-clean-style';
-            var target = document.head || document.documentElement || document.body;
-            if (target) target.appendChild(el);
-          }
-          if (el) el.textContent = css;
+        function cleanup() {
+          try {
+            var selectors = [
+              'button[aria-label="Accept all"]',
+              'button[aria-label="Agree"]',
+              'button[aria-label="Dismiss"]',
+              'button[aria-label="No thanks"]',
+              'button[aria-label*="Chấp nhận" i]',
+              'button[aria-label*="Đồng ý" i]',
+              'button[aria-label*="Bỏ qua" i]',
+              'button[aria-label*="Không" i]',
+              '.upsell-dialog-renderer button',
+              'ytm-app-banner button'
+            ];
+            for (var i = 0; i < selectors.length; i++) {
+              var btns = document.querySelectorAll(selectors[i]);
+              for (var j = 0; j < btns.length; j++) {
+                try { btns[j].click(); } catch(e){}
+              }
+            }
+
+            var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
+            if (skip) {
+              try { skip.click(); } catch(e){}
+            }
+
+            var video = document.querySelector('video');
+            var ad = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
+            if (video && ad && isFinite(video.duration) && video.currentTime < video.duration) {
+              video.currentTime = video.duration;
+            }
+
+            if (video && video.paused) {
+              video.play().catch(function() {
+                video.muted = true;
+                video.play().catch(function(){});
+              });
+            }
+
+            var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="bật tiếng" i]');
+            if (unmuteBtn && unmuteBtn.offsetParent !== null) {
+              try { unmuteBtn.click(); } catch(e){}
+            }
+          } catch(e) {}
         }
 
-        applyStyle();
+        var style = document.getElementById('sl-clean-style');
+        if (!style) {
+          style = document.createElement('style');
+          style.id = 'sl-clean-style';
+          style.textContent = 'ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-app-banner, .upsell-dialog-renderer, ytd-masthead, #masthead-container, #secondary { display: none !important; }';
+          var target = document.head || document.documentElement || document.body;
+          if (target) target.appendChild(style);
+        }
 
+        cleanup();
         if (!window._slLoop) {
-          window._slLoop = setInterval(function() {
-            try {
-              applyStyle();
-
-              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button');
-              popups.forEach(function(p) { p.click(); });
-
-              var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
-              if (skip) skip.click();
-
-              var video = document.querySelector('video');
-              var ad = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
-              if (video && ad && isFinite(video.duration) && video.currentTime < video.duration) {
-                video.currentTime = video.duration;
-              }
-
-              var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="bật tiếng" i]');
-              if (unmuteBtn && unmuteBtn.offsetParent !== null) {
-                unmuteBtn.click();
-              }
-
-              if (video) {
-                if (video.paused) {
-                  video.play().catch(function() {
-                    video.muted = true;
-                    video.play().catch(function(){});
-                  });
-                } else {
-                  if (video.muted) {
-                    video.muted = false;
-                  }
-                  video.volume = 1.0;
-                }
-              }
-
-              var playBtn = document.querySelector('.ytp-large-play-button, .player-control-play-pause-icon, button[aria-label*="Play" i], button[aria-label*="Phát" i]');
-              if (playBtn && playBtn.offsetParent !== null) {
-                playBtn.click();
-              }
-            } catch (e) {}
-          }, 250);
-
-          ['click', 'touchstart', 'pointerdown'].forEach(function(evt) {
-            document.addEventListener(evt, function() {
-              var v = document.querySelector('video');
-              if (v) {
-                v.muted = false;
-                v.volume = 1.0;
-                if (v.paused) v.play().catch(function(){});
-              }
-            }, { passive: true });
-          });
+          window._slLoop = setInterval(cleanup, 500);
         }
       })();
     """;
@@ -1171,38 +1230,30 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   @override
   void dispose() {
-    _ctrl?.runJavaScript(
-        "try { if (window._slLoop) clearInterval(window._slLoop); document.querySelector('video')?.pause(); } catch(e){}");
+    _ctrl?.runJavaScript("""
+      try {
+        if (window._slLoop) clearInterval(window._slLoop);
+        var f = document.getElementById('sl-yt-frame');
+        if (f && f.contentWindow) {
+          f.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        }
+        document.querySelector('video')?.pause();
+      } catch(e){}
+    """);
     _ctrl?.loadRequest(Uri.parse('about:blank'));
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    PlatformWebViewWidgetCreationParams? widgetParams;
-    if (_ctrl != null) {
-      if (WebViewPlatform.instance is AndroidWebViewPlatform) {
-        widgetParams = AndroidWebViewWidgetCreationParams(
-          controller: _ctrl!.platform,
-          layoutDirection: TextDirection.ltr,
-          displayWithHybridComposition: true,
-        );
-      } else {
-        widgetParams = PlatformWebViewWidgetCreationParams(
-          controller: _ctrl!.platform,
-          layoutDirection: TextDirection.ltr,
-        );
-      }
-    }
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(
           widget.isFullscreen ? 0 : SonicTokens.radiusXl),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (widgetParams != null)
-            WebViewWidget.fromPlatformCreationParams(params: widgetParams),
+          if (_ctrl != null)
+            WebViewWidget(controller: _ctrl!),
           if (!_isReady)
             Container(
               color: Colors.black,

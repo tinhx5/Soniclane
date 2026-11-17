@@ -74,6 +74,10 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
             },
           ),
         );
+      if (ctrl.platform is AndroidWebViewController) {
+        (ctrl.platform as AndroidWebViewController)
+            .setMediaPlaybackRequiresUserGesture(false);
+      }
       _controller = ctrl;
 
       final init = widget.initialUrl?.trim();
@@ -285,7 +289,7 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
                           ),
                         ),
                       )
-                    : _buildHybridWebView(),
+                    : WebViewWidget(controller: _controller!),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -357,23 +361,5 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildHybridWebView() {
-    if (_controller == null) return const SizedBox.shrink();
-    final PlatformWebViewWidgetCreationParams params;
-    if (WebViewPlatform.instance is AndroidWebViewPlatform) {
-      params = AndroidWebViewWidgetCreationParams(
-        controller: _controller!.platform,
-        layoutDirection: TextDirection.ltr,
-        displayWithHybridComposition: true,
-      );
-    } else {
-      params = PlatformWebViewWidgetCreationParams(
-        controller: _controller!.platform,
-        layoutDirection: TextDirection.ltr,
-      );
-    }
-    return WebViewWidget.fromPlatformCreationParams(params: params);
   }
 }
