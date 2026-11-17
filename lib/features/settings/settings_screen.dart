@@ -408,7 +408,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             widget.embedded ? 0 : 20,
             widget.embedded ? 4 : 20,
             widget.embedded ? 0 : 20,
-            widget.embedded ? 120 : 130,
+            widget.embedded ? 32 : 130,
           ),
           children: [
             if (!widget.embedded) ...[

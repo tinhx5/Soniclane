@@ -255,10 +255,10 @@ void main() {
 
         expect(find.text('Browse Hardware Files'), findsOneWidget);
         expect(find.text('Connect Drive Link / Folder'), findsOneWidget);
-        expect(find.text('SONICLANE'), findsOneWidget);
-        expect(find.text('LIBRARY'), findsOneWidget);
-        expect(find.text('PLAYLIST'), findsOneWidget);
-        expect(find.text('SETTINGS'), findsOneWidget);
+        expect(find.text('Soniclane'), findsAtLeastNWidgets(1));
+        expect(find.text('Library'), findsAtLeastNWidgets(1));
+        expect(find.text('Playlist'), findsAtLeastNWidgets(1));
+        expect(find.text('Settings'), findsAtLeastNWidgets(1));
         expect(find.text('Tìm kiếm bài hát, ca sĩ, danh sách phát...'), findsOneWidget);
         expect(find.text('Tìm giọng nói'), findsOneWidget);
         expect(find.text('inv.nadeko.net'), findsNothing);
@@ -266,17 +266,18 @@ void main() {
         expect(find.byIcon(Icons.person_rounded), findsAtLeastNWidgets(1));
         expect(find.text('Full Player ↗'), findsOneWidget);
 
-        // Tap PLAYLIST to verify dedicated Playlist screen
-        await tester.tap(find.text('PLAYLIST'));
+        // Tap Playlist to verify dedicated Playlist screen
+        await tester.tap(find.text('Playlist'));
         await tester.pump();
         await Future.delayed(const Duration(milliseconds: 100));
         await tester.pump();
         expect(find.text('Danh sách phát'), findsOneWidget);
 
         // Navigate to Settings via Rail
-        await tester.tap(find.text('SETTINGS'));
+        await tester.tap(find.text('Settings').first);
         await tester.pump();
-        expect(find.text('Cockpit Settings'), findsOneWidget);
+        await Future.delayed(const Duration(milliseconds: 100));
+        await tester.pump();
         expect(find.text('IN-APP BROWSER & CUSTOM MEDIA SOURCE'), findsOneWidget);
         expect(find.text('In-App Web Browser'), findsOneWidget);
         expect(find.text('Auto-Select Fastest Server Mirror'), findsOneWidget);
@@ -300,6 +301,12 @@ void main() {
         await tester.tap(find.byTooltip('Close Browser'));
         await tester.pump();
         await Future.delayed(const Duration(milliseconds: 200));
+        await tester.pump();
+
+        // Navigate to Home via Logo to test docked player (hidden on Settings page)
+        await tester.tap(find.text('Soniclane').first);
+        await tester.pump();
+        await Future.delayed(const Duration(milliseconds: 100));
         await tester.pump();
 
         // Open Full Player & verify tapping VIDEO switches directly without safety warning modal

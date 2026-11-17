@@ -16,7 +16,8 @@ import 'playlist_detail_screen.dart';
 import 'usb_browser_screen.dart';
 
 class LibraryScreen extends ConsumerWidget {
-  const LibraryScreen({super.key});
+  final bool embedded;
+  const LibraryScreen({super.key, this.embedded = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +32,7 @@ class LibraryScreen extends ConsumerWidget {
 
           if (isWide) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 140),
+              padding: EdgeInsets.fromLTRB(24, 16, 24, embedded ? 32 : 140),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -135,7 +136,7 @@ class LibraryScreen extends ConsumerWidget {
           // Mobile Portrait Layout matching Mobile_library_storage_hub Stitch
           return ListView(
             physics: const ClampingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 108),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, embedded ? 24 : 108),
             children: [
               _LibraryTopBar(sortBy: library.sortBy),
               const SizedBox(height: 14),

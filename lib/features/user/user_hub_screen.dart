@@ -2,118 +2,200 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/sonic_providers.dart';
 import '../../core/theme/sonic_tokens.dart';
+import '../../shared/widgets/top_cockpit_header.dart';
 import '../library/library_screen.dart';
 import '../settings/settings_screen.dart';
 
-/// Unified Personal Hub for mobile portrait mode:
+/// Unified Personal Hub for both landscape & mobile:
 /// Combines Driver Profile, Library (Playlists, Liked, Offline, USB, Wi-Fi, Drive),
 /// and Settings (Cabin Bass/EQ, Sleep Timer, Server, Safety).
+///
+/// Features a collapsible Search Header & Driver Profile Card, with sticky
+/// [ Library | Settings ] tabs pinned at y = 0 on scroll down, and no fixed
+/// bottom mini player so full vertical screen real-estate is used.
 class UserHubScreen extends ConsumerWidget {
   const UserHubScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subTab = ref.watch(userHubSubTabProvider);
+    final motion = ref.watch(vehicleMotionProvider).valueOrNull;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Column(
-            children: [
-              // Driver Profile Card
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: SonicTokens.surfaceCard,
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-                  border: Border.all(
-                    color: SonicTokens.glassBorder,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 700;
+
+        return NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              // 1. Search Header (collapses & scrolls out of view on scroll down)
+              SliverToBoxAdapter(
+                child: TopCockpitHeader(
+                  isParked: motion?.isParked ?? true,
+                  showLogoWordmark: isMobile,
+                  isMobileMode: isMobile,
+                  activeTab: isMobile ? 2 : 5,
+                  onHome: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    ref.read(activeTabProvider.notifier).state = 0;
+                  },
+                  onSearchTap: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    ref.read(activeTabProvider.notifier).state = 1;
+                    ref.read(searchFocusTriggerProvider.notifier).state++;
+                  },
+                  onSettings: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    ref.read(userHubSubTabProvider.notifier).state = 1;
+                  },
+                  onProfile: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    ref.read(userHubSubTabProvider.notifier).state = 0;
+                  },
+                ),
+              ),
+
+              // 2. Driver Profile Card (collapses & scrolls out of view)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: SonicTokens.surfaceCard,
+                      borderRadius:
+                          BorderRadius.circular(SonicTokens.radiusXl),
+                      border: Border.all(
+                        color: SonicTokens.glassBorder,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 22,
+                          backgroundColor: SonicTokens.primaryContainer,
+                          child: Text(
+                            'SL',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Driver Cockpit',
+                                style:
+                                    Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                'Soniclane Cockpit • Free Edition (All Unlocked)',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: SonicTokens.secondaryContainer,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 22,
-                      backgroundColor: SonicTokens.primaryContainer,
-                      child: Text(
-                        'SL',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Driver Cockpit',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          Text(
-                            'Soniclane Cockpit • Free Edition (All Unlocked)',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: SonicTokens.secondaryContainer,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              ),
+
+              // 3. Sticky Tab Switcher: [ Library | Settings ]
+              // Pins firmly at top (y = 0, replacing search row) on downscroll!
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _HubTabBarDelegate(
+                  subTab: subTab,
+                  onTabChanged: (idx) {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    ref.read(userHubSubTabProvider.notifier).state = idx;
+                  },
                 ),
               ),
-              const SizedBox(height: 10),
-              // Library | Settings Sub-tab Switcher
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: SonicTokens.surfaceContainer,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: SonicTokens.glassBorder),
+            ];
+          },
+          body: subTab == 0
+              ? const KeyedSubtree(
+                  key: ValueKey('hub_lib'),
+                  child: LibraryScreen(embedded: true),
+                )
+              : const KeyedSubtree(
+                  key: ValueKey('hub_settings'),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: SettingsScreen(embedded: true),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    _HubTabChip(
-                      icon: Icons.library_music_rounded,
-                      label: 'Library',
-                      active: subTab == 0,
-                      onTap: () {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        ref.read(userHubSubTabProvider.notifier).state = 0;
-                      },
-                    ),
-                    _HubTabChip(
-                      icon: Icons.tune_rounded,
-                      label: 'Settings',
-                      active: subTab == 1,
-                      onTap: () {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        ref.read(userHubSubTabProvider.notifier).state = 1;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: subTab == 0
-              ? const LibraryScreen()
-              : const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: SettingsScreen(embedded: true),
-                ),
-        ),
-      ],
+        );
+      },
     );
+  }
+}
+
+class _HubTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final int subTab;
+  final ValueChanged<int> onTabChanged;
+
+  _HubTabBarDelegate({
+    required this.subTab,
+    required this.onTabChanged,
+  });
+
+  @override
+  double get minExtent => 60.0;
+
+  @override
+  double get maxExtent => 60.0;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: SonicTokens.surfaceBase,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      alignment: Alignment.center,
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceContainer,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: SonicTokens.glassBorder),
+        ),
+        child: Row(
+          children: [
+            _HubTabChip(
+              icon: Icons.library_music_rounded,
+              label: 'Library',
+              active: subTab == 0,
+              onTap: () => onTabChanged(0),
+            ),
+            _HubTabChip(
+              icon: Icons.tune_rounded,
+              label: 'Settings',
+              active: subTab == 1,
+              onTap: () => onTabChanged(1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _HubTabBarDelegate oldDelegate) {
+    return oldDelegate.subTab != subTab;
   }
 }
 
