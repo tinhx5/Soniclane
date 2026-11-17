@@ -32,6 +32,8 @@
 	<string>Soniclane checks vehicle speed to enable Video Mode only when safely parked.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Soniclane monitors vehicle motion to ensure video playback is safely paused while driving.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Soniclane monitors vehicle motion to ensure video playback is safely paused while driving.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Soniclane lets you import audio files and custom playlist artwork from your photo library.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
