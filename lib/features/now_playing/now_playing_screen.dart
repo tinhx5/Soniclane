@@ -1080,14 +1080,22 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   }
 
   void _loadCurrent() {
+    if (mounted) {
+      setState(() => _isReady = false);
+    }
     _ctrl?.loadRequest(Uri.parse('$_kWebWatchBase${widget.videoId}'));
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (mounted && !_isReady) {
+        setState(() => _isReady = true);
+      }
+    });
   }
 
   Future<void> _injectCleanerScript() async {
     const js = """
       (function() {
         function applyStyle() {
-          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container { width: 100% !important; height: 100% !important; background: #000 !important; } video, .video-stream, .html5-main-video { width: 100% !important; height: 100% !important; object-fit: contain !important; }';
+          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
           var el = document.getElementById('sl-clean-style');
           if (!el) {
             el = document.createElement('style');
@@ -1118,24 +1126,41 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
               }
 
               var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="bật tiếng" i]');
-              if (unmuteBtn) {
+              if (unmuteBtn && unmuteBtn.offsetParent !== null) {
                 unmuteBtn.click();
               }
 
               if (video) {
-                if (video.muted) video.muted = false;
-                video.volume = 1.0;
                 if (video.paused) {
-                  video.play().catch(function(){});
+                  video.play().catch(function() {
+                    video.muted = true;
+                    video.play().catch(function(){});
+                  });
+                } else {
+                  if (video.muted) {
+                    video.muted = false;
+                  }
+                  video.volume = 1.0;
                 }
               }
 
-              var playBtn = document.querySelector('.ytp-large-play-button');
+              var playBtn = document.querySelector('.ytp-large-play-button, .player-control-play-pause-icon, button[aria-label*="Play" i], button[aria-label*="Phát" i]');
               if (playBtn && playBtn.offsetParent !== null) {
                 playBtn.click();
               }
             } catch (e) {}
           }, 250);
+
+          ['click', 'touchstart', 'pointerdown'].forEach(function(evt) {
+            document.addEventListener(evt, function() {
+              var v = document.querySelector('video');
+              if (v) {
+                v.muted = false;
+                v.volume = 1.0;
+                if (v.paused) v.play().catch(function(){});
+              }
+            }, { passive: true });
+          });
         }
       })();
     """;
@@ -1154,13 +1179,30 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   @override
   Widget build(BuildContext context) {
+    PlatformWebViewWidgetCreationParams? widgetParams;
+    if (_ctrl != null) {
+      if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+        widgetParams = AndroidWebViewWidgetCreationParams(
+          controller: _ctrl!.platform,
+          layoutDirection: TextDirection.ltr,
+          displayWithHybridComposition: true,
+        );
+      } else {
+        widgetParams = PlatformWebViewWidgetCreationParams(
+          controller: _ctrl!.platform,
+          layoutDirection: TextDirection.ltr,
+        );
+      }
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(
           widget.isFullscreen ? 0 : SonicTokens.radiusXl),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (_ctrl != null) WebViewWidget(controller: _ctrl!),
+          if (widgetParams != null)
+            WebViewWidget.fromPlatformCreationParams(params: widgetParams),
           if (!_isReady)
             Container(
               color: Colors.black,
@@ -1192,34 +1234,61 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
             Positioned(
               top: 10,
               right: 10,
-              child: InkWell(
-                onTap: widget.onOpenBrowser,
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.72),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      _injectCleanerScript();
+                      _loadCurrent();
+                    },
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.open_in_browser_rounded,
-                          size: 14, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text(
-                        'Web Browser ↗',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.72),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.white24),
                       ),
-                    ],
+                      child: const Icon(
+                        Icons.refresh_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  InkWell(
+                    onTap: widget.onOpenBrowser,
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.72),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.open_in_browser_rounded,
+                              size: 14, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Web Browser ↗',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           if (!widget.isFullscreen)

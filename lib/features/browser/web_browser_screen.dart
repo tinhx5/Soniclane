@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 import '../../core/theme/sonic_tokens.dart';
 
 /// Neutral general-purpose In-App Web Browser accessible from Settings.
@@ -284,7 +285,7 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
                           ),
                         ),
                       )
-                    : WebViewWidget(controller: _controller!),
+                    : _buildHybridWebView(),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -356,5 +357,23 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildHybridWebView() {
+    if (_controller == null) return const SizedBox.shrink();
+    final PlatformWebViewWidgetCreationParams params;
+    if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+      params = AndroidWebViewWidgetCreationParams(
+        controller: _controller!.platform,
+        layoutDirection: TextDirection.ltr,
+        displayWithHybridComposition: true,
+      );
+    } else {
+      params = PlatformWebViewWidgetCreationParams(
+        controller: _controller!.platform,
+        layoutDirection: TextDirection.ltr,
+      );
+    }
+    return WebViewWidget.fromPlatformCreationParams(params: params);
   }
 }
