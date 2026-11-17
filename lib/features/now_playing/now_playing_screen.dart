@@ -27,6 +27,17 @@ final _kWebWatchBase = String.fromCharCodes([
   98, 101, 46, 99, 111, 109, 47, 119, 97, 116, 99, 104, 63, 118, 61
 ]);
 
+final _kEmbedBase = String.fromCharCodes([
+  104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
+  116, 117, 98, 101, 45, 110, 111, 99, 111, 111, 107, 105, 101, 46, 99,
+  111, 109, 47, 101, 109, 98, 101, 100, 47
+]);
+
+final _kOrigin = String.fromCharCodes([
+  104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
+  116, 117, 98, 101, 46, 99, 111, 109
+]);
+
 class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
 
@@ -790,33 +801,24 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
             track.source == TrackSource.local ||
             track.source == TrackSource.googleDrive);
 
-    // On mobile devices & tablets, when in Video mode for online custom streams,
-    // ALWAYS render the instant Cốc Cốc-style Web Player with ad suppression!
-    // For local USB / Dashcam files, native mpv/media_kit is used.
-    final renderWebPlayer = widget.isVideoMode &&
-        _isMobileDevice &&
-        isCustomStream;
-
+    // If native video stream is available (from custom server in Settings or local/USB),
+    // ALWAYS prefer native hardware video playback!
+    // If no direct video stream is available, use the instant embedded Web Player.
     final canRenderNativeVideo = widget.isVideoMode &&
-        !renderWebPlayer &&
         vc != null &&
         hasPlayableNativeVideo;
+
+    final renderWebPlayer = widget.isVideoMode &&
+        !canRenderNativeVideo &&
+        _isMobileDevice &&
+        isCustomStream;
 
     Widget stage = AspectRatio(
       aspectRatio: widget.aspectRatio,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (renderWebPlayer) ...[
-            _EmbeddedWebVideoStage(
-              videoId: track.id,
-              isPlaying: widget.isPlaying,
-              onOpenBrowser: () => WebBrowserScreen.open(
-                context,
-                initialUrl: '$_kWebWatchBase${track.id}',
-              ),
-            ),
-          ] else if (canRenderNativeVideo) ...[
+          if (canRenderNativeVideo) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
               child: ColoredBox(
@@ -892,6 +894,15 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
                     size: 26,
                   ),
                 ),
+              ),
+            ),
+          ] else if (renderWebPlayer) ...[
+            _EmbeddedWebVideoStage(
+              videoId: track.id,
+              isPlaying: widget.isPlaying,
+              onOpenBrowser: () => WebBrowserScreen.open(
+                context,
+                initialUrl: '$_kWebWatchBase${track.id}',
               ),
             ),
           ] else ...[
@@ -1003,6 +1014,7 @@ class _EmbeddedWebVideoStage extends StatefulWidget {
 class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   WebViewController? _ctrl;
   bool _isReady = false;
+  bool _hasEmbedError = false;
 
   @override
   void initState() {
@@ -1067,8 +1079,30 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
         'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
       )
       ..setBackgroundColor(Colors.black)
+      ..addJavaScriptChannel(
+        'SonicBridge',
+        onMessageReceived: (JavaScriptMessage msg) {
+          if (msg.message.startsWith('EMBED_ERROR_')) {
+            if (mounted) {
+              setState(() => _hasEmbedError = true);
+            }
+          }
+        },
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
+          onNavigationRequest: (NavigationRequest req) {
+            final uri = Uri.tryParse(req.url);
+            if (uri != null &&
+                (uri.path.contains('/watch') ||
+                    uri.host.endsWith('.be') ||
+                    (uri.host.contains('cookie') &&
+                        !uri.path.contains('/embed/')))) {
+              widget.onOpenBrowser?.call();
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
           onProgress: (p) {
             if (p > 60) _injectCleanerScript();
           },
@@ -1126,7 +1160,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   <div id="player-container">
     <iframe
       id="sl-yt-frame"
-      src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&enablejsapi=1&rel=0&modestbranding=1&controls=1&fs=1"
+      src="$_kEmbedBase$videoId?autoplay=1&playsinline=1&enablejsapi=1&origin=$_kOrigin&widget_referrer=$_kOrigin&rel=0&modestbranding=1&controls=1&fs=1"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowfullscreen>
     </iframe>
@@ -1135,8 +1169,10 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     window.addEventListener('message', function(e) {
       try {
         var msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (msg && msg.event === 'onError') {
-          window.location.href = 'https://m.youtube.com/watch?v=$videoId';
+        if (msg && (msg.event === 'onError' || msg.info === 150 || msg.info === 101 || msg.info === 152)) {
+          if (window.SonicBridge) {
+            window.SonicBridge.postMessage('EMBED_ERROR_' + (msg.info || ''));
+          }
         }
       } catch (err) {}
     });
@@ -1148,10 +1184,13 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   void _loadCurrent() {
     if (mounted) {
-      setState(() => _isReady = false);
+      setState(() {
+        _isReady = false;
+        _hasEmbedError = false;
+      });
     }
     final html = _buildIframeHtml(widget.videoId);
-    _ctrl?.loadHtmlString(html, baseUrl: 'https://www.youtube.com');
+    _ctrl?.loadHtmlString(html, baseUrl: _kOrigin);
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted && !_isReady) {
         setState(() => _isReady = true);
@@ -1246,15 +1285,31 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   @override
   Widget build(BuildContext context) {
+    PlatformWebViewWidgetCreationParams? widgetParams;
+    if (_ctrl != null) {
+      if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+        widgetParams = AndroidWebViewWidgetCreationParams(
+          controller: _ctrl!.platform,
+          layoutDirection: TextDirection.ltr,
+          displayWithHybridComposition: true,
+        );
+      } else {
+        widgetParams = PlatformWebViewWidgetCreationParams(
+          controller: _ctrl!.platform,
+          layoutDirection: TextDirection.ltr,
+        );
+      }
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(
           widget.isFullscreen ? 0 : SonicTokens.radiusXl),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (_ctrl != null)
-            WebViewWidget(controller: _ctrl!),
-          if (!_isReady)
+          if (widgetParams != null)
+            WebViewWidget.fromPlatformCreationParams(params: widgetParams),
+          if (!_isReady && !_hasEmbedError)
             Container(
               color: Colors.black,
               alignment: Alignment.center,
@@ -1276,6 +1331,60 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                       color: Colors.white70,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_hasEmbedError)
+            Container(
+              color: Colors.black,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.video_library_rounded,
+                    color: SonicTokens.secondaryContainer,
+                    size: 40,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Video yêu cầu mở từ Web Player',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Tác giả hạn chế phát nhúng. Chạm bên dưới để xem trực tiếp không quảng cáo.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: SonicTokens.secondaryContainer,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    onPressed: widget.onOpenBrowser,
+                    icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                    label: const Text(
+                      'Mở Web Player',
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],

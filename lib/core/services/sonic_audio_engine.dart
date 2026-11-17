@@ -792,9 +792,13 @@ class SonicAudioEngine {
       Duration(seconds: playableTrack.durationSeconds),
     );
 
-    // On mobile/in-car Android, when playing online video, Web Player handles both video and audio.
+    final hasDirectVideo = playableTrack.videoStreamUrl != null &&
+        playableTrack.videoStreamUrl!.isNotEmpty;
+
+    // On mobile, if no direct video stream was resolved from custom server,
+    // fallback to Embedded Web Video Player.
     // Pause background native audio to prevent duplicate sound and dismiss buffering spinner.
-    if (effectiveVideoMode && isMobile && isCustomOnline) {
+    if (effectiveVideoMode && isMobile && isCustomOnline && !hasDirectVideo) {
       await _player?.pause();
       _emit(_snapshot.copyWith(
         isBuffering: false,
@@ -1227,27 +1231,14 @@ class SonicAudioEngine {
       return;
     }
 
-    if (track != null && track.source == TrackSource.customStream && isMobile) {
-      // On mobile devices, online video is rendered instantly via Web Player (Cốc Cốc-style).
-      // Pause native background audio player to prevent audio collision.
-      await _player?.pause();
-      _emit(_snapshot.copyWith(
-        isVideoMode: true,
-        isPlaying: true,
-        isBuffering: false,
-        statusBanner: null,
-      ));
-      return;
-    }
-
     _emit(_snapshot.copyWith(
-      isVideoMode: enableVideo,
+      isVideoMode: true,
       isBuffering: _player != null && track != null,
+      clearBanner: true,
     ));
     if (track == null) return;
 
-    final needResolveVideo = enableVideo &&
-        track.source == TrackSource.customStream &&
+    final needResolveVideo = track.source == TrackSource.customStream &&
         StreamResolver.instance.hasCustomServer &&
         (track.videoStreamUrl == null ||
             track.videoStreamUrl!.isEmpty ||
@@ -1288,24 +1279,40 @@ class SonicAudioEngine {
       }
     }
 
-    if (enableVideo &&
-        track.source == TrackSource.customStream &&
-        (track.videoStreamUrl == null || track.videoStreamUrl!.isEmpty)) {
-      await _disableWakeLock();
-      _emit(_snapshot.copyWith(
-        isVideoMode: false,
-        statusBanner: 'Video stream unavailable for this track on current server.',
-      ));
-      return;
-    }
+    final hasDirectVideo = track.videoStreamUrl != null &&
+        track.videoStreamUrl!.isNotEmpty;
 
-    await _openPlayerMedia(
-      track,
-      enableVideo,
-      seekToPos: _snapshot.position,
-      autoPlay: enableVideo ? true : _snapshot.isPlaying,
-      gen: gen,
-    );
+    if (hasDirectVideo || !isMobile) {
+      if (!hasDirectVideo && track.source == TrackSource.customStream) {
+        await _disableWakeLock();
+        _emit(_snapshot.copyWith(
+          isVideoMode: false,
+          isBuffering: false,
+          statusBanner:
+              'Video stream unavailable for this track on current server.',
+        ));
+        return;
+      }
+
+      await _openPlayerMedia(
+        track,
+        true,
+        seekToPos: _snapshot.position,
+        autoPlay: true,
+        gen: gen,
+      );
+    } else {
+      // Fallback on mobile when no direct video stream is returned:
+      // Embedded Web Video Player plays video & audio directly.
+      // Pause background native audio to prevent audio collision.
+      await _player?.pause();
+      _emit(_snapshot.copyWith(
+        isVideoMode: true,
+        isPlaying: true,
+        isBuffering: false,
+        statusBanner: null,
+      ));
+    }
   }
 
   Future<void> toggleShuffle() async {
