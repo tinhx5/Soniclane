@@ -80,20 +80,19 @@ class LibraryScreen extends ConsumerWidget {
                                   OfflineDownloadsScreen.open(context),
                             ),
                             const SizedBox(height: 16),
-                            _UsbDriveCard(
+                            _ConnectedStorageSection(
                               usbDevices: library.usbDevices,
-                              onBrowse: () => UsbBrowserScreen.open(
+                              localCount: library.localDeviceTracks.length,
+                              isWifiRunning: wifi.isRunning,
+                              wifiUrl: wifi.serverUrl,
+                              onBrowseUsb: () => UsbBrowserScreen.open(
                                 context,
                                 initialFolderPath:
                                     library.usbDevices.isNotEmpty
                                         ? library.usbDevices.first.rootPath
                                         : null,
                               ),
-                            ),
-                            const SizedBox(height: 14),
-                            _PhoneStorageCard(
-                              localCount: library.localDeviceTracks.length,
-                              onPickFiles: () async {
+                              onPickLocalFiles: () async {
                                 final files = await StorageScanner.instance
                                     .pickMediaFiles();
                                 if (files.isNotEmpty && context.mounted) {
@@ -112,16 +111,9 @@ class LibraryScreen extends ConsumerWidget {
                                   );
                                 }
                               },
-                            ),
-                            const SizedBox(height: 14),
-                            _WifiDropCard(
-                              isRunning: wifi.isRunning,
-                              url: wifi.serverUrl,
-                              onTap: () => WifiTransferModal.show(context),
-                            ),
-                            const SizedBox(height: 14),
-                            _GoogleDriveCard(
-                              onTap: () => CloudDriveModal.show(context),
+                              onWifiTap: () =>
+                                  WifiTransferModal.show(context),
+                              onDriveTap: () => CloudDriveModal.show(context),
                             ),
                           ],
                         ),
@@ -165,66 +157,37 @@ class LibraryScreen extends ConsumerWidget {
               Text('Connected Storage & Wireless Sync',
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
-              SizedBox(
-                height: 256,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    SizedBox(
-                      width: 300,
-                      child: _UsbDriveCard(
-                        usbDevices: library.usbDevices,
-                        onBrowse: () => UsbBrowserScreen.open(
-                          context,
-                          initialFolderPath: library.usbDevices.isNotEmpty
-                              ? library.usbDevices.first.rootPath
-                              : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    SizedBox(
-                      width: 300,
-                      child: _PhoneStorageCard(
-                        localCount: library.localDeviceTracks.length,
-                        onPickFiles: () async {
-                          final files =
-                              await StorageScanner.instance.pickMediaFiles();
-                          if (files.isNotEmpty && context.mounted) {
-                            await playTrackAndOpenMobile(
-                              context,
-                              ref,
-                              files.first,
-                              queue: files,
-                              playlistName: 'Device Media',
-                              keepVideoMode:
-                                  (files.first.videoStreamUrl != null &&
-                                          files.first.videoStreamUrl!.isNotEmpty)
-                                      ? true
-                                      : null,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    SizedBox(
-                      width: 300,
-                      child: _WifiDropCard(
-                        isRunning: wifi.isRunning,
-                        url: wifi.serverUrl,
-                        onTap: () => WifiTransferModal.show(context),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    SizedBox(
-                      width: 300,
-                      child: _GoogleDriveCard(
-                        onTap: () => CloudDriveModal.show(context),
-                      ),
-                    ),
-                  ],
+              _ConnectedStorageSection(
+                usbDevices: library.usbDevices,
+                localCount: library.localDeviceTracks.length,
+                isWifiRunning: wifi.isRunning,
+                wifiUrl: wifi.serverUrl,
+                onBrowseUsb: () => UsbBrowserScreen.open(
+                  context,
+                  initialFolderPath: library.usbDevices.isNotEmpty
+                      ? library.usbDevices.first.rootPath
+                      : null,
                 ),
+                onPickLocalFiles: () async {
+                  final files =
+                      await StorageScanner.instance.pickMediaFiles();
+                  if (files.isNotEmpty && context.mounted) {
+                    await playTrackAndOpenMobile(
+                      context,
+                      ref,
+                      files.first,
+                      queue: files,
+                      playlistName: 'Device Media',
+                      keepVideoMode:
+                          (files.first.videoStreamUrl != null &&
+                                  files.first.videoStreamUrl!.isNotEmpty)
+                              ? true
+                              : null,
+                    );
+                  }
+                },
+                onWifiTap: () => WifiTransferModal.show(context),
+                onDriveTap: () => CloudDriveModal.show(context),
               ),
             ],
           );
@@ -559,6 +522,91 @@ class _QuickAccessGrid extends StatelessWidget {
   }
 }
 
+class _ConnectedStorageSection extends StatelessWidget {
+  final List<StorageDeviceInfo> usbDevices;
+  final int localCount;
+  final bool isWifiRunning;
+  final String wifiUrl;
+  final VoidCallback onBrowseUsb;
+  final VoidCallback onPickLocalFiles;
+  final VoidCallback onWifiTap;
+  final VoidCallback onDriveTap;
+
+  const _ConnectedStorageSection({
+    required this.usbDevices,
+    required this.localCount,
+    required this.isWifiRunning,
+    required this.wifiUrl,
+    required this.onBrowseUsb,
+    required this.onPickLocalFiles,
+    required this.onWifiTap,
+    required this.onDriveTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWideRow = constraints.maxWidth >= 720;
+
+        final cardUsb = _UsbDriveCard(
+          usbDevices: usbDevices,
+          onBrowse: onBrowseUsb,
+        );
+        final cardPhone = _PhoneStorageCard(
+          localCount: localCount,
+          onPickFiles: onPickLocalFiles,
+        );
+        final cardWifi = _WifiDropCard(
+          isRunning: isWifiRunning,
+          url: wifiUrl,
+          onTap: onWifiTap,
+        );
+        final cardDrive = _GoogleDriveCard(
+          onTap: onDriveTap,
+        );
+
+        if (isWideRow) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: cardUsb),
+              const SizedBox(width: 10),
+              Expanded(child: cardPhone),
+              const SizedBox(width: 10),
+              Expanded(child: cardWifi),
+              const SizedBox(width: 10),
+              Expanded(child: cardDrive),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: cardUsb),
+                const SizedBox(width: 10),
+                Expanded(child: cardPhone),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: cardWifi),
+                const SizedBox(width: 10),
+                Expanded(child: cardDrive),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _UsbDriveCard extends StatelessWidget {
   final List<StorageDeviceInfo> usbDevices;
   final VoidCallback onBrowse;
@@ -572,133 +620,116 @@ class _UsbDriveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeUsb = usbDevices.isNotEmpty ? usbDevices.first : null;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: SonicTokens.surfaceHigh,
-        borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-        border: Border.all(
-          color: activeUsb != null
-              ? SonicTokens.activeBorderCyan
-              : SonicTokens.glassBorder,
+    return InkWell(
+      onTap: onBrowse,
+      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 110),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceHigh,
+          borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+          border: Border.all(
+            color: activeUsb != null
+                ? SonicTokens.activeBorderCyan
+                : SonicTokens.glassBorder,
+          ),
+          boxShadow: activeUsb != null
+              ? SonicTokens.cyanGlow(opacity: 0.14)
+              : null,
         ),
-        boxShadow: activeUsb != null ? SonicTokens.cyanGlow(opacity: 0.14) : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: SonicTokens.surfaceLowest,
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
-                ),
-                child: const Icon(Icons.usb_rounded,
-                    color: SonicTokens.secondaryContainer, size: 28),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      activeUsb?.name ?? 'In-Car USB Drive',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      activeUsb?.subtitle ?? 'Plug USB or select music folder',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              if (activeUsb != null)
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: SonicTokens.surfaceLowest,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: SonicTokens.activeBorderCyan),
+                    borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
                   ),
-                  child: const Text(
-                    'MOUNTED',
-                    style: TextStyle(
-                      color: SonicTokens.secondaryContainer,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
+                  child: const Icon(Icons.usb_rounded,
+                      color: SonicTokens.secondaryContainer, size: 18),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    activeUsb?.name ?? 'In-Car USB',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
                     ),
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: SonicTokens.surfaceLowest,
-              borderRadius: BorderRadius.circular(999),
+                if (activeUsb != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: SonicTokens.surfaceLowest,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: SonicTokens.activeBorderCyan),
+                    ),
+                    child: const Text(
+                      'READY',
+                      style: TextStyle(
+                        color: SonicTokens.secondaryContainer,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            child: Text(
+            const SizedBox(height: 6),
+            Text(
               activeUsb != null
-                  ? '● ${activeUsb.trackCount} Audio Tracks (Dashcam Filtered)'
-                  : '● Ignores DCIM / DVR Dashcam Videos',
+                  ? '${activeUsb.trackCount} Tracks'
+                  : 'Plug USB / select folder',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  color: SonicTokens.secondaryContainer,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700),
+                color: SonicTokens.textSecondary,
+                fontSize: 11,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: activeUsb?.usageRatio ?? 0.35,
-              minHeight: 7,
-              backgroundColor: SonicTokens.surfaceLowest,
-              color: SonicTokens.secondaryContainer,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onBrowse,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: SonicTokens.surfaceContainer,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
-                ),
+            const SizedBox(height: 8),
+            Container(
+              height: 28,
+              width: double.infinity,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: SonicTokens.surfaceContainer,
+                borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
               ),
               child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
+                  Flexible(
                     child: Text(
                       'Browse Hardware Files',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(width: 4),
                   Icon(Icons.arrow_forward_rounded,
-                      color: SonicTokens.secondaryContainer),
+                      size: 13, color: SonicTokens.secondaryContainer),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -715,75 +746,89 @@ class _PhoneStorageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: SonicTokens.surfaceCard,
-        borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-        border: Border.all(color: SonicTokens.glassBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: SonicTokens.surfaceHigh,
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
+    return InkWell(
+      onTap: onPickFiles,
+      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 110),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceCard,
+          borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+          border: Border.all(color: SonicTokens.glassBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: SonicTokens.surfaceHigh,
+                    borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
+                  ),
+                  child: const Icon(Icons.folder_copy_rounded,
+                      color: SonicTokens.primaryTint, size: 18),
                 ),
-                child: const Icon(Icons.folder_copy_rounded,
-                    color: SonicTokens.primaryTint, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Device & Files Storage',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    Text('$localCount local media files ready',
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onPickFiles,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: SonicTokens.surfaceHigh,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Import Media Files (Audio / MP4 / TS)',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Device Storage',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
                     ),
                   ),
-                  SizedBox(width: 8),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '$localCount local media files',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: SonicTokens.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 28,
+              width: double.infinity,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: SonicTokens.surfaceHigh,
+                borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Import Media Files',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 4),
                   Icon(Icons.folder_open_rounded,
-                      color: SonicTokens.primaryTint),
+                      size: 13, color: SonicTokens.primaryTint),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -802,84 +847,101 @@ class _WifiDropCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: SonicTokens.surfaceCard,
-        borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-        border: Border.all(color: SonicTokens.glassBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: SonicTokens.surfaceHigh,
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 110),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceCard,
+          borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+          border: Border.all(color: SonicTokens.glassBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: SonicTokens.surfaceHigh,
+                    borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
+                  ),
+                  child: const Icon(Icons.wifi_tethering_rounded,
+                      color: SonicTokens.tertiaryLight, size: 18),
                 ),
-                child: const Icon(Icons.wifi_tethering_rounded,
-                    color: SonicTokens.tertiaryLight, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Wi-Fi Drop Server',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    Text(
-                      isRunning ? 'Active • $url' : 'Cockpit LAN Bridge (:8080)',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isRunning
-                            ? SonicTokens.successGreen
-                            : SonicTokens.textSecondary,
-                      ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Wi-Fi Transfer',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
                     ),
-                  ],
+                  ),
                 ),
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isRunning
+                        ? SonicTokens.successGreen
+                        : SonicTokens.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isRunning ? 'Active • $url' : 'LAN Bridge (:8080)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isRunning
+                    ? SonicTokens.successGreen
+                    : SonicTokens.textSecondary,
+                fontSize: 11,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onTap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: SonicTokens.surfaceHigh,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
-                ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 28,
+              width: double.infinity,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: SonicTokens.surfaceHigh,
+                borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
               ),
               child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
+                  Flexible(
                     child: Text(
                       'QR Setup Key',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(width: 4),
                   Icon(Icons.qr_code_2_rounded,
-                      color: SonicTokens.tertiaryLight),
+                      size: 13, color: SonicTokens.tertiaryLight),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -891,79 +953,89 @@ class _GoogleDriveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: SonicTokens.surfaceCard,
-        borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-        border: Border.all(color: SonicTokens.glassBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: SonicTokens.surfaceHigh,
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 110),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceCard,
+          borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+          border: Border.all(color: SonicTokens.glassBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: SonicTokens.surfaceHigh,
+                    borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
+                  ),
+                  child: const Icon(Icons.cloud_done_rounded,
+                      color: SonicTokens.successGreen, size: 18),
                 ),
-                child: const Icon(Icons.cloud_done_rounded,
-                    color: SonicTokens.successGreen, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Google Drive Cloud',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    Text(
-                      'Stream or download personal Drive audio',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Google Drive',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
                     ),
-                  ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Stream or save offline audio',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: SonicTokens.textSecondary,
+                fontSize: 11,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onTap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: SonicTokens.surfaceHigh,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(SonicTokens.radiusLg),
-                ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 28,
+              width: double.infinity,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: SonicTokens.surfaceHigh,
+                borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
               ),
               child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
+                  Flexible(
                     child: Text(
                       'Connect Drive Link / Folder',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(width: 4),
                   Icon(Icons.add_to_drive_rounded,
-                      color: SonicTokens.successGreen),
+                      size: 13, color: SonicTokens.successGreen),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

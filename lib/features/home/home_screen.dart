@@ -19,22 +19,12 @@ import 'history_screen.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  static List<String> _getFilters([BuildContext? context]) => [
-    'All Blended',
-    '💾 In-Car USB',
-    'Night Drives',
-    'High-BPM Focus',
-    'Lo-Fi Road',
-    'Podcasts & Talk',
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final home = ref.watch(homeFeedProvider);
     final library = ref.watch(libraryProvider);
     final clipLink = ref.watch(clipboardBannerProvider);
     final showResume = ref.watch(resumeCardVisibleProvider);
-    final filters = _getFilters(context);
 
     final snap = ref.watch(playbackSnapshotProvider).valueOrNull ??
         SonicAudioEngine.instance.snapshot;
@@ -73,13 +63,6 @@ class HomeScreen extends ConsumerWidget {
                   _HomeFollowedChannelsRail(channels: home.followedChannels),
                   const SizedBox(height: 12),
                 ],
-                _FilterChipsRow(
-                  filters: filters,
-                  selected: home.selectedFilter,
-                  onSelected: (f) =>
-                      ref.read(homeFeedProvider.notifier).selectFilter(f),
-                ),
-                const SizedBox(height: 20),
                 _SectionHeader(
                   title: 'Resume & Listen Again',
                   icon: Icons.history_rounded,
@@ -132,14 +115,8 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 18),
                 if (home.followedChannels.isNotEmpty) ...[
                   _HomeFollowedChannelsRail(channels: home.followedChannels),
+                  const SizedBox(height: 14),
                 ],
-                _FilterChipsRow(
-                  filters: filters,
-                  selected: home.selectedFilter,
-                  onSelected: (f) =>
-                      ref.read(homeFeedProvider.notifier).selectFilter(f),
-                ),
-                const SizedBox(height: 20),
                 const _SectionHeader(
                   title: 'Smart Recommendations',
                   icon: Icons.auto_awesome_rounded,
@@ -989,62 +966,6 @@ class _FeedMediaCard extends ConsumerWidget {
   }
 }
 
-class _FilterChipsRow extends StatelessWidget {
-  final List<String> filters;
-  final String selected;
-  final ValueChanged<String> onSelected;
-
-  const _FilterChipsRow({
-    required this.filters,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final f = filters[i];
-          final active = f == selected;
-          return InkWell(
-            onTap: () => onSelected(f),
-            borderRadius: BorderRadius.circular(999),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: active
-                    ? SonicTokens.secondaryBlue
-                    : SonicTokens.surfaceCard,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: active
-                      ? SonicTokens.secondaryContainer
-                      : SonicTokens.glassBorder,
-                ),
-                boxShadow: active ? SonicTokens.blueGlow(opacity: 0.28) : null,
-              ),
-              child: Text(
-                f,
-                style: TextStyle(
-                  color: active ? Colors.white : SonicTokens.textSecondary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   final String title;

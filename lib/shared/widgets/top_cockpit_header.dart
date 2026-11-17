@@ -67,11 +67,16 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
 
   @override
   Widget build(BuildContext context) {
+    final searchQuery = ref.watch(searchProvider).query;
+    if (_searchCtrl.text.isEmpty && searchQuery.isNotEmpty) {
+      _searchCtrl.text = searchQuery;
+    }
+
     if (widget.isMobileMode) {
-      // Mobile Portrait Header: Logo on left, Search and Profile on right
+      // Mobile Portrait Header: Logo on left, Search input bar, Filter Icon, Profile on right
       return Container(
-        height: 60,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: SonicTokens.surfaceLowest.withOpacity(0.92),
           border: const Border(
@@ -82,31 +87,89 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
           children: [
             InkWell(
               onTap: widget.onHome,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                child: SonicLogo(size: 32, showWordmark: true),
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                child: SonicLogo(size: 28, showWordmark: false),
               ),
             ),
-            const Spacer(),
-            IconButton(
-              tooltip: 'Search',
-              onPressed: widget.onSearchTap,
-              icon: Icon(
-                Icons.search_rounded,
-                size: 26,
-                color: widget.activeTab == 1
-                    ? SonicTokens.secondaryContainer
-                    : SonicTokens.textSecondary,
+            const SizedBox(width: 8),
+            // Mobile Search Input
+            Expanded(
+              child: Tooltip(
+                message: 'Search',
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: SonicTokens.surfaceHigh,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: widget.activeTab == 1
+                          ? SonicTokens.activeBorderCyan
+                          : SonicTokens.glassBorder,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.search_rounded,
+                        color: SonicTokens.secondaryContainer,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchCtrl,
+                          style: const TextStyle(fontSize: 12.5),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            contentPadding: EdgeInsets.zero,
+                            hintText: 'Search songs, artists...',
+                            hintStyle: TextStyle(
+                              color: SonicTokens.textTertiary,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: _triggerSearch,
+                          onTap: () {
+                            if (widget.activeTab != 1) {
+                              ref.read(activeTabProvider.notifier).state = 1;
+                            }
+                          },
+                        ),
+                      ),
+                      if (_searchCtrl.text.isNotEmpty)
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.close_rounded,
+                              size: 15, color: SonicTokens.textSecondary),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            _triggerSearch('');
+                          },
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 8),
+            // Filter icon placed right next to Search Input on portrait!
+            const _HeaderFilterButton(),
+            const SizedBox(width: 8),
+            // User Profile
             InkWell(
               onTap: widget.onProfile,
               borderRadius: BorderRadius.circular(999),
               child: Container(
-                width: 38,
-                height: 38,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: widget.activeTab == 2 || widget.activeTab == 5
@@ -119,7 +182,7 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
                   ),
                 ),
                 child: const Icon(Icons.person_outline_rounded,
-                    color: SonicTokens.primaryTint, size: 20),
+                    color: SonicTokens.primaryTint, size: 18),
               ),
             ),
           ],
@@ -128,12 +191,7 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
     }
 
     // Landscape / Widescreen Cockpit Header:
-    // No logo/name (in left rail), no status pills, center Search input bar, right Voice search mic button
-    final searchQuery = ref.watch(searchProvider).query;
-    if (_searchCtrl.text.isEmpty && searchQuery.isNotEmpty) {
-      _searchCtrl.text = searchQuery;
-    }
-
+    // Left Search Input, Filter Icon next to it, Far Right Voice Search
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -145,7 +203,7 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
       ),
       child: Row(
         children: [
-          // Center Search Input
+          // Center Search Input (English placeholder)
           Expanded(
             child: Container(
               height: 36,
@@ -177,7 +235,7 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
                         focusedBorder: InputBorder.none,
                         filled: false,
                         contentPadding: EdgeInsets.zero,
-                        hintText: 'Tìm kiếm bài hát, ca sĩ, danh sách phát...',
+                        hintText: 'Search songs, artists, playlists...',
                         hintStyle: TextStyle(
                           color: SonicTokens.textTertiary,
                           fontSize: 13,
@@ -207,8 +265,11 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          // Far Right Voice Search Mic Button
+          const SizedBox(width: 8),
+          // Filter Tag Icon placed right next to Search Input
+          const _HeaderFilterButton(),
+          const SizedBox(width: 8),
+          // Far Right Voice Search Mic Button (English label)
           InkWell(
             onTap: _triggerVoiceSearch,
             borderRadius: BorderRadius.circular(999),
@@ -230,7 +291,7 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
                   ),
                   SizedBox(width: 6),
                   Text(
-                    'Tìm giọng nói',
+                    'Voice Search',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -242,6 +303,224 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact Filter Icon Button placed directly beside Search Input
+class _HeaderFilterButton extends ConsumerWidget {
+  const _HeaderFilterButton();
+
+  void _showFilterSheet(BuildContext context, WidgetRef ref) {
+    final home = ref.read(homeFeedProvider);
+    final activeFilter = home.selectedFilter;
+    const filters = [
+      {
+        'name': 'All Blended',
+        'desc': 'All music & smart streams',
+        'icon': Icons.all_inclusive_rounded
+      },
+      {
+        'name': '💾 In-Car USB',
+        'desc': 'Local storage tracks only',
+        'icon': Icons.usb_rounded
+      },
+      {
+        'name': 'Night Drives',
+        'desc': 'Chill highway ambient music',
+        'icon': Icons.nightlight_round
+      },
+      {
+        'name': 'High-BPM Focus',
+        'desc': 'Energetic beats & driving tempo',
+        'icon': Icons.bolt_rounded
+      },
+      {
+        'name': 'Lo-Fi Road',
+        'desc': 'Relaxing background road beats',
+        'icon': Icons.headphones_rounded
+      },
+      {
+        'name': 'Podcasts & Talk',
+        'desc': 'Talk shows & spoken audio',
+        'icon': Icons.podcasts_rounded
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: SonicTokens.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: SonicTokens.glassBorder,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.tune_rounded,
+                        color: SonicTokens.secondaryContainer, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Feed & Recommendation Filters',
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...filters.map((f) {
+                  final name = f['name'] as String;
+                  final desc = f['desc'] as String;
+                  final icon = f['icon'] as IconData;
+                  final isSelected = activeFilter == name;
+
+                  return InkWell(
+                    onTap: () {
+                      ref.read(homeFeedProvider.notifier).selectFilter(name);
+                      Navigator.pop(ctx);
+                      final activeTab = ref.read(activeTabProvider);
+                      if (activeTab != 0) {
+                        ref.read(activeTabProvider.notifier).state = 0;
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? SonicTokens.secondaryBlue.withOpacity(0.18)
+                            : SonicTokens.surfaceHigh,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? SonicTokens.activeBorderCyan
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            icon,
+                            color: isSelected
+                                ? SonicTokens.secondaryContainer
+                                : SonicTokens.textSecondary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: TextStyle(
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : SonicTokens.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  desc,
+                                  style: const TextStyle(
+                                    color: SonicTokens.textSecondary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: SonicTokens.secondaryContainer,
+                              size: 18,
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeFilter = ref.watch(homeFeedProvider).selectedFilter;
+    final isFiltered = activeFilter != 'All Blended';
+
+    return Tooltip(
+      message: 'Feed Filter: $activeFilter',
+      child: InkWell(
+        onTap: () => _showFilterSheet(context, ref),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isFiltered
+                ? SonicTokens.secondaryBlue.withOpacity(0.24)
+                : SonicTokens.surfaceHigh,
+            border: Border.all(
+              color: isFiltered
+                  ? SonicTokens.activeBorderCyan
+                  : SonicTokens.glassBorder,
+            ),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: isFiltered
+                    ? SonicTokens.secondaryContainer
+                    : SonicTokens.textSecondary,
+              ),
+              if (isFiltered)
+                Positioned(
+                  top: 7,
+                  right: 7,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: SonicTokens.secondaryContainer,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

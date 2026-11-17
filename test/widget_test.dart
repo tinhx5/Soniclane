@@ -259,8 +259,8 @@ void main() {
         expect(find.text('Library'), findsAtLeastNWidgets(1));
         expect(find.text('Playlist'), findsAtLeastNWidgets(1));
         expect(find.text('Settings'), findsAtLeastNWidgets(1));
-        expect(find.text('Tìm kiếm bài hát, ca sĩ, danh sách phát...'), findsOneWidget);
-        expect(find.text('Tìm giọng nói'), findsOneWidget);
+        expect(find.text('Search songs, artists, playlists...'), findsOneWidget);
+        expect(find.text('Voice Search'), findsOneWidget);
         expect(find.text('inv.nadeko.net'), findsNothing);
         expect(find.text('P-GEAR • VIDEO READY'), findsNothing);
         expect(find.byIcon(Icons.person_rounded), findsAtLeastNWidgets(1));
