@@ -61,6 +61,8 @@ dependencies:
   in_app_purchase: ^3.2.3
   speech_to_text: ^7.4.0
   webview_flutter: ">=4.7.0 <4.11.0"
+  webview_flutter_android: ^3.16.9
+  webview_flutter_wkwebview: ^3.16.2
 
 dev_dependencies:
   flutter_test:

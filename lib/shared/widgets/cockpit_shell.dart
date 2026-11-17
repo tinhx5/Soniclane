@@ -90,7 +90,15 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
           child: LayoutBuilder(
             builder: (context, constraints) {
             final isDesktopOrTablet = constraints.maxWidth >= 700;
-            final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+            final viewInset = MediaQuery.viewInsetsOf(context).bottom;
+            final hasKeyboard = viewInset > 40 ||
+                (WidgetsBinding.instance.platformDispatcher.views.isNotEmpty &&
+                    WidgetsBinding.instance.platformDispatcher.views.first
+                            .viewInsets.bottom >
+                        40);
+            final isTyping = FocusManager.instance.primaryFocus?.context?.widget
+                is EditableText;
+            final isKeyboardOpen = hasKeyboard || isTyping;
             final isDetailOpen = ref.watch(cockpitSplitDetailOpenProvider) &&
                 snap.currentTrack != null;
 
@@ -845,6 +853,12 @@ class _MobileFloatingMiniPlayer extends StatelessWidget {
                       onPressed: () => SonicAudioEngine.instance.skipToNext(),
                       icon: const Icon(Icons.skip_next_rounded, size: 26),
                     ),
+                    IconButton(
+                      tooltip: 'Đóng trình phát',
+                      onPressed: () => SonicAudioEngine.instance.stop(),
+                      icon: const Icon(Icons.close_rounded,
+                          size: 20, color: SonicTokens.textSecondary),
+                    ),
                   ],
                 ),
               ),
@@ -1037,6 +1051,13 @@ class _DockedDesktopMiniPlayer extends StatelessWidget {
                     label: const Text('Full Player ↗'),
                   ),
                 ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Đóng trình phát',
+                onPressed: () => SonicAudioEngine.instance.stop(),
+                icon: const Icon(Icons.close_rounded,
+                    size: 22, color: SonicTokens.textSecondary),
               ),
             ],
           ),

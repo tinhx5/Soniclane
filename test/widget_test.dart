@@ -488,7 +488,8 @@ void main() {
 
         await tester.tap(rowFinder);
         await Future.delayed(const Duration(milliseconds: 200));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
 
         expect(find.text('Second Playlist Song'), findsOneWidget);
 

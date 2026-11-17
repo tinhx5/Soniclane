@@ -461,20 +461,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ]
               else if (isCockpit || isWide) ...[
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: constraints.maxWidth >= 950 ? 3 : 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 1.18,
-                  ),
-                  itemCount: filteredResults.length,
-                  itemBuilder: (_, i) => _SearchGridCard(
-                    key: ValueKey(filteredResults[i].id),
-                    track: filteredResults[i],
-                  ),
+                Builder(
+                  builder: (context) {
+                    final gridCols = constraints.maxWidth >= 1050
+                        ? 4
+                        : (constraints.maxWidth >= 720 ? 3 : 2);
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: gridCols,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                        childAspectRatio: gridCols >= 4 ? 1.08 : 1.15,
+                      ),
+                      itemCount: filteredResults.length,
+                      itemBuilder: (_, i) => _SearchGridCard(
+                        key: ValueKey(filteredResults[i].id),
+                        track: filteredResults[i],
+                        queue: filteredResults,
+                      ),
+                    );
+                  },
                 ),
                 if (search.isLoadingMore)
                   const Padding(
@@ -533,6 +541,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         context,
                         ref,
                         track,
+                        queue: filteredResults,
                       ),
                     ),
                   );
@@ -550,11 +559,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
               ],
             ] else if (isCockpit) ...[
-              // Cockpit mode with no search yet: Show smart recommended tracks directly (clean 2-column grid, no landing page)
+              // Cockpit mode with no search yet: Show smart recommended tracks directly (clean adaptive grid, no landing page)
               Builder(
                 builder: (context) {
                   final recs = ref.watch(homeFeedProvider).recommendations;
                   final displayList = _filterBySource(recs, search.sourceFilter);
+                  final gridCols = constraints.maxWidth >= 1050
+                      ? 4
+                      : (constraints.maxWidth >= 720 ? 3 : 2);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -578,15 +590,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: constraints.maxWidth >= 950 ? 3 : 2,
+                          crossAxisCount: gridCols,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
-                          childAspectRatio: 1.18,
+                          childAspectRatio: gridCols >= 4 ? 1.08 : 1.15,
                         ),
                         itemCount: displayList.length,
                         itemBuilder: (_, i) => _SearchGridCard(
                           key: ValueKey(displayList[i].id),
                           track: displayList[i],
+                          queue: displayList,
                         ),
                       ),
                     ],
@@ -942,18 +955,34 @@ class _VoiceShortcutChip extends StatelessWidget {
 
 class _SearchGridCard extends ConsumerWidget {
   final MediaTrack track;
-  const _SearchGridCard({super.key, required this.track});
+  final List<MediaTrack>? queue;
+  const _SearchGridCard({super.key, required this.track, this.queue});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentTrack =
+        ref.watch(playbackSnapshotProvider).valueOrNull?.currentTrack;
+    final isPlaying = currentTrack?.id == track.id;
+
     return InkWell(
-      onTap: () => playTrackAndOpenMobile(context, ref, track),
+      onTap: () => playTrackAndOpenMobile(
+        context,
+        ref,
+        track,
+        queue: queue,
+      ),
       borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
       child: Container(
         decoration: BoxDecoration(
           color: SonicTokens.surfaceCard,
           borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-          border: Border.all(color: SonicTokens.glassBorder),
+          border: Border.all(
+            color: isPlaying
+                ? SonicTokens.activeBorderCyan
+                : SonicTokens.glassBorder,
+            width: isPlaying ? 1.5 : 1,
+          ),
+          boxShadow: isPlaying ? SonicTokens.cyanGlow(opacity: 0.3) : null,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -982,11 +1011,40 @@ class _SearchGridCard extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  if (isPlaying)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: SonicTokens.secondaryContainer,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.equalizer_rounded,
+                                size: 12, color: Colors.black),
+                            SizedBox(width: 4),
+                            Text(
+                              'ĐANG PHÁT',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
               child: Row(
                 children: [
                   Expanded(
@@ -997,9 +1055,12 @@ class _SearchGridCard extends ConsumerWidget {
                           track.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
+                            color: isPlaying
+                                ? SonicTokens.secondaryLight
+                                : Colors.white,
                           ),
                         ),
                         const SizedBox(height: 2),

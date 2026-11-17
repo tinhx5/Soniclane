@@ -19,6 +19,8 @@ import '../library/channel_detail_screen.dart';
 import '../overlays/equalizer_modal.dart';
 import '../overlays/playlist_modals.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 final _kWebWatchBase = String.fromCharCodes([
   104, 116, 116, 112, 115, 58, 47, 47, 109, 46, 121, 111, 117, 116, 117,
@@ -67,6 +69,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       }
     }
     await SonicAudioEngine.instance.setVideoMode(wantVideo);
+    if (!wantVideo) {
+      await SonicAudioEngine.instance.play();
+    }
   }
 
   @override
@@ -91,22 +96,28 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         orientation == Orientation.landscape &&
         !_isFullscreenOpen &&
         !_userDismissedFullscreenInLandscape) {
-      final vc = SonicAudioEngine.instance.videoController;
-      if (vc != null) {
-        _isFullscreenOpen = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (!mounted) return;
-          await _FullscreenVideoPage.open(context, vc);
-          if (mounted) {
-            setState(() {
-              _isFullscreenOpen = false;
-              if (MediaQuery.orientationOf(context) == Orientation.landscape) {
-                _userDismissedFullscreenInLandscape = true;
-              }
-            });
+      _isFullscreenOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final isCustomStream =
+            track != null && track.source == TrackSource.customStream;
+        if (isCustomStream) {
+          await _WebFullscreenVideoPage.open(context, track.id);
+        } else {
+          final vc = SonicAudioEngine.instance.videoController;
+          if (vc != null) {
+            await _FullscreenVideoPage.open(context, vc);
           }
-        });
-      }
+        }
+        if (mounted) {
+          setState(() {
+            _isFullscreenOpen = false;
+            if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+              _userDismissedFullscreenInLandscape = true;
+            }
+          });
+        }
+      });
     }
 
     return CallbackShortcuts(
@@ -518,6 +529,9 @@ class CockpitDetailPane extends ConsumerWidget {
                       }
                     }
                     await SonicAudioEngine.instance.setVideoMode(wantVideo);
+                    if (!wantVideo) {
+                      await SonicAudioEngine.instance.play();
+                    }
                   },
                 ),
                 const SizedBox(width: 6),
@@ -528,7 +542,15 @@ class CockpitDetailPane extends ConsumerWidget {
                     size: 26,
                     color: SonicTokens.secondaryContainer,
                   ),
-                  onPressed: onOpenFullscreen,
+                  onPressed: () {
+                    final isCustomStream = track != null &&
+                        track.source == TrackSource.customStream;
+                    if (snap.isVideoMode && isCustomStream) {
+                      _WebFullscreenVideoPage.open(context, track.id);
+                    } else {
+                      onOpenFullscreen();
+                    }
+                  },
                 ),
                 IconButton(
                   tooltip: 'Thu nhỏ',
@@ -710,51 +732,8 @@ class _MediaStageBox extends StatefulWidget {
 }
 
 class _MediaStageBoxState extends State<_MediaStageBox> {
-  bool _useWebPlayer = false;
-  Timer? _webFallbackTimer;
-
   bool get _isMobileDevice =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-
-  @override
-  void initState() {
-    super.initState();
-    _armFallbackTimer();
-  }
-
-  @override
-  void didUpdateWidget(covariant _MediaStageBox oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.track?.id != widget.track?.id ||
-        oldWidget.isVideoMode != widget.isVideoMode) {
-      _useWebPlayer = false;
-      _armFallbackTimer();
-    }
-  }
-
-  @override
-  void dispose() {
-    _webFallbackTimer?.cancel();
-    super.dispose();
-  }
-
-  void _armFallbackTimer() {
-    _webFallbackTimer?.cancel();
-    final isCustomStream =
-        widget.track != null && widget.track!.source == TrackSource.customStream;
-    if (widget.isVideoMode && _isMobileDevice && isCustomStream) {
-      // If native stream stalls or fails to render video within 2.2s, auto-switch to Web Player
-      _webFallbackTimer = Timer(const Duration(milliseconds: 2200), () {
-        if (!mounted || _useWebPlayer) return;
-        final vc = SonicAudioEngine.instance.videoController;
-        final rect = vc?.rect.value;
-        final isReady = rect != null && rect.width > 1 && rect.height > 1;
-        if (!isReady) {
-          setState(() => _useWebPlayer = true);
-        }
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -769,12 +748,12 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
             track.source == TrackSource.local ||
             track.source == TrackSource.googleDrive);
 
-    // On mobile devices, when user requests Video mode for online custom streams,
-    // if native video stream is missing OR user prefers web player, we run Web Player.
+    // On mobile devices & tablets, when in Video mode for online custom streams,
+    // ALWAYS render the instant Cốc Cốc-style Web Player with ad suppression!
+    // For local USB / Dashcam files, native mpv/media_kit is used.
     final renderWebPlayer = widget.isVideoMode &&
         _isMobileDevice &&
-        isCustomStream &&
-        (_useWebPlayer || !hasPlayableNativeVideo);
+        isCustomStream;
 
     final canRenderNativeVideo = widget.isVideoMode &&
         !renderWebPlayer &&
@@ -793,9 +772,6 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
                 context,
                 initialUrl: '$_kWebWatchBase${track.id}',
               ),
-              onToggleNative: hasPlayableNativeVideo
-                  ? () => setState(() => _useWebPlayer = false)
-                  : null,
             ),
           ] else if (canRenderNativeVideo) ...[
             ClipRRect(
@@ -824,10 +800,10 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
                           color: Colors.black,
                           alignment: Alignment.center,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
+                          child: const Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const SizedBox(
+                              SizedBox(
                                 width: 26,
                                 height: 26,
                                 child: CircularProgressIndicator(
@@ -835,34 +811,15 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
                                   color: SonicTokens.secondaryContainer,
                                 ),
                               ),
-                              const SizedBox(height: 10),
+                              SizedBox(height: 10),
                               Text(
                                 'Loading video stream...',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.75),
+                                  color: Colors.white70,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              if (isCustomStream && _isMobileDevice) ...[
-                                const SizedBox(height: 12),
-                                OutlinedButton.icon(
-                                  onPressed: () =>
-                                      setState(() => _useWebPlayer = true),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor:
-                                        SonicTokens.secondaryContainer,
-                                    side: const BorderSide(
-                                        color: SonicTokens.activeBorderCyan),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 6),
-                                  ),
-                                  icon: const Icon(Icons.public_rounded,
-                                      size: 16),
-                                  label:
-                                      const Text('Chơi bằng Web Player (Mượt)'),
-                                ),
-                              ],
                             ],
                           ),
                         );
@@ -985,13 +942,13 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
 
 class _EmbeddedWebVideoStage extends StatefulWidget {
   final String videoId;
-  final VoidCallback onOpenBrowser;
-  final VoidCallback? onToggleNative;
+  final VoidCallback? onOpenBrowser;
+  final bool isFullscreen;
 
   const _EmbeddedWebVideoStage({
     required this.videoId,
-    required this.onOpenBrowser,
-    this.onToggleNative,
+    this.onOpenBrowser,
+    this.isFullscreen = false,
   });
 
   @override
@@ -1023,12 +980,65 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     }
   }
 
+  String _buildPlayerHtml(String videoId) {
+    final embedSrc =
+        '$_kEmbedBase$videoId?autoplay=1&playsinline=1&enablejsapi=1&origin=https://soniclane.app&rel=0&controls=1&modestbranding=1&iv_load_policy=3&fs=1';
+    return '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; background: #000; overflow: hidden; }
+    html, body { width: 100%; height: 100%; background: #000; }
+    #player { width: 100%; height: 100%; border: none; }
+    .ytp-ad-overlay-container, .ytp-ad-message-container, .video-ads,
+    .ytp-ad-player-overlay, .ytp-ad-module, .annotation, .ytp-pause-overlay {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <iframe
+    id="player"
+    src="$embedSrc"
+    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+    allowfullscreen>
+  </iframe>
+  <script>
+    function autoSkipAds() {
+      try {
+        var skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
+        if (skipBtn) skipBtn.click();
+        var video = document.querySelector('video');
+        var adShowing = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
+        if (video && adShowing && isFinite(video.duration) && video.currentTime < video.duration) {
+          video.currentTime = video.duration;
+        }
+      } catch (e) {}
+    }
+    setInterval(autoSkipAds, 200);
+  </script>
+</body>
+</html>''';
+  }
+
   void _initController() {
-    final embedUrl =
-        '$_kEmbedBase${widget.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1';
-    _ctrl = WebViewController()
+    late final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    } else if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+      params = AndroidWebViewControllerCreationParams();
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    _ctrl = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent('Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
+      ..setUserAgent('Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
       ..setBackgroundColor(Colors.black)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -1036,20 +1046,31 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
             if (mounted) setState(() => _isReady = true);
           },
         ),
-      )
-      ..loadRequest(Uri.parse(embedUrl));
+      );
+
+    if (_ctrl!.platform is AndroidWebViewController) {
+      final androidCtrl = _ctrl!.platform as AndroidWebViewController;
+      androidCtrl.setMediaPlaybackRequiresUserGesture(false);
+    }
+
+    _ctrl!.loadHtmlString(
+      _buildPlayerHtml(widget.videoId),
+      baseUrl: 'https://soniclane.app',
+    );
   }
 
   void _loadCurrent() {
-    final embedUrl =
-        '$_kEmbedBase${widget.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1';
-    _ctrl?.loadRequest(Uri.parse(embedUrl));
+    _ctrl?.loadHtmlString(
+      _buildPlayerHtml(widget.videoId),
+      baseUrl: 'https://soniclane.app',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+      borderRadius: BorderRadius.circular(
+          widget.isFullscreen ? 0 : SonicTokens.radiusXl),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -1071,7 +1092,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    'Loading Web Video Player...',
+                    'Loading Video Player...',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
@@ -1081,45 +1102,12 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 ],
               ),
             ),
-          Positioned(
-            top: 10,
-            right: 10,
-            child: InkWell(
-              onTap: widget.onOpenBrowser,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.72),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.open_in_browser_rounded,
-                        size: 14, color: Colors.white),
-                    SizedBox(width: 4),
-                    Text(
-                      'Web Browser ↗',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (widget.onToggleNative != null)
+          if (!widget.isFullscreen && widget.onOpenBrowser != null)
             Positioned(
-              bottom: 10,
+              top: 10,
               right: 10,
               child: InkWell(
-                onTap: widget.onToggleNative,
+                onTap: widget.onOpenBrowser,
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
                   padding:
@@ -1132,13 +1120,13 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.video_settings_rounded,
-                          size: 14, color: SonicTokens.secondaryContainer),
+                      Icon(Icons.open_in_browser_rounded,
+                          size: 14, color: Colors.white),
                       SizedBox(width: 4),
                       Text(
-                        'Native Engine',
+                        'Web Browser ↗',
                         style: TextStyle(
-                          color: SonicTokens.secondaryLight,
+                          color: Colors.white,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1148,6 +1136,116 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 ),
               ),
             ),
+          if (!widget.isFullscreen)
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: InkWell(
+                onTap: () =>
+                    _WebFullscreenVideoPage.open(context, widget.videoId),
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.68),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Icon(
+                    Icons.fullscreen_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebFullscreenVideoPage extends StatefulWidget {
+  final String videoId;
+  const _WebFullscreenVideoPage({required this.videoId});
+
+  static Future<void> open(BuildContext context, String videoId) {
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _WebFullscreenVideoPage(videoId: videoId),
+      ),
+    );
+  }
+
+  @override
+  State<_WebFullscreenVideoPage> createState() =>
+      _WebFullscreenVideoPageState();
+}
+
+class _WebFullscreenVideoPageState extends State<_WebFullscreenVideoPage> {
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          _EmbeddedWebVideoStage(
+            videoId: widget.videoId,
+            isFullscreen: true,
+          ),
+          Positioned(
+            top: 16,
+            left: 16,
+            child: SafeArea(
+              child: InkWell(
+                onTap: () => Navigator.of(context).pop(),
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.65),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded,
+                      color: Colors.white, size: 22),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
