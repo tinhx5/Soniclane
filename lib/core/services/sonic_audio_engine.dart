@@ -725,33 +725,41 @@ class SonicAudioEngine {
             _emit(_snapshot.copyWith(habitSuggestions: relatedForAutoQueue));
           }
         } else {
-          // If inside a queue/playlist and there are more tracks, auto-skip broken items
-          if (queue != null && _snapshot.currentIndex < queue.length - 1) {
+          final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+          if (targetVideoMode && isMobile) {
             debugPrint(
-                '[AudioEngine] Track ${track.id} resolution failed; auto-skipping to next in queue...');
-            _emit(_snapshot.copyWith(
-              isBuffering: true,
-              statusBanner: 'Skipping unavailable track...',
-            ));
-            await skipToNext();
-            return;
-          }
-          // Fallback when offline: Smart-Skip to next offline track if inside hybrid playlist
-          if (queue != null && queue.any((t) => t.source.isOfflineCapable)) {
+                '[AudioEngine] Piped resolution failed, but playing via Web Video on mobile.');
+            playableTrack = track;
+            tierLabel = 'Direct Web Video';
+          } else {
+            // If inside a queue/playlist and there are more tracks, auto-skip broken items
+            if (queue != null && _snapshot.currentIndex < queue.length - 1) {
+              debugPrint(
+                  '[AudioEngine] Track ${track.id} resolution failed; auto-skipping to next in queue...');
+              _emit(_snapshot.copyWith(
+                isBuffering: true,
+                statusBanner: 'Skipping unavailable track...',
+              ));
+              await skipToNext();
+              return;
+            }
+            // Fallback when offline: Smart-Skip to next offline track if inside hybrid playlist
+            if (queue != null && queue.any((t) => t.source.isOfflineCapable)) {
+              _emit(_snapshot.copyWith(
+                isBuffering: false,
+                statusBanner: 'Offline mode: Smart-skipping to local track...',
+              ));
+              await _skipToNextOfflineInQueue();
+              return;
+            }
             _emit(_snapshot.copyWith(
               isBuffering: false,
-              statusBanner: 'Offline mode: Smart-skipping to local track...',
+              isPlaying: false,
+              statusBanner:
+                  'Stream unavailable. Configure Custom Server in Settings or play offline files.',
             ));
-            await _skipToNextOfflineInQueue();
             return;
           }
-          _emit(_snapshot.copyWith(
-            isBuffering: false,
-            isPlaying: false,
-            statusBanner:
-                'Stream unavailable. Configure Custom Server in Settings or play offline files.',
-          ));
-          return;
         }
       }
     } else if (relatedForAutoQueue != null) {
@@ -760,10 +768,13 @@ class SonicAudioEngine {
 
     await DatabaseService.instance.incrementPlayCount(playableTrack);
 
+    final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final isCustomOnline = playableTrack.source == TrackSource.customStream;
     final effectiveVideoMode = _snapshot.isVideoMode &&
-        !(playableTrack.source == TrackSource.customStream &&
-            (playableTrack.videoStreamUrl == null ||
-                playableTrack.videoStreamUrl!.isEmpty));
+        (isMobile ||
+            !(isCustomOnline &&
+                (playableTrack.videoStreamUrl == null ||
+                    playableTrack.videoStreamUrl!.isEmpty)));
     _emit(
       _snapshot.copyWith(
         currentTrack: playableTrack,
@@ -780,6 +791,17 @@ class SonicAudioEngine {
       playableTrack,
       Duration(seconds: playableTrack.durationSeconds),
     );
+
+    // On mobile/in-car Android, when playing online video, Web Player handles both video and audio.
+    // Pause background native audio to prevent duplicate sound and dismiss buffering spinner.
+    if (effectiveVideoMode && isMobile && isCustomOnline) {
+      await _player?.pause();
+      _emit(_snapshot.copyWith(
+        isBuffering: false,
+        isPlaying: true,
+      ));
+      return;
+    }
 
     await _openPlayerMedia(
       playableTrack,
@@ -1191,6 +1213,33 @@ class SonicAudioEngine {
     _pendingExternalAudioUri = null;
 
     var track = _snapshot.currentTrack;
+    final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+    if (!enableVideo) {
+      _emit(_snapshot.copyWith(
+        isVideoMode: false,
+        isBuffering: false,
+      ));
+      await _player?.play();
+      _emit(_snapshot.copyWith(
+        isPlaying: true,
+      ));
+      return;
+    }
+
+    if (track != null && track.source == TrackSource.customStream && isMobile) {
+      // On mobile devices, online video is rendered instantly via Web Player (Cốc Cốc-style).
+      // Pause native background audio player to prevent audio collision.
+      await _player?.pause();
+      _emit(_snapshot.copyWith(
+        isVideoMode: true,
+        isPlaying: true,
+        isBuffering: false,
+        statusBanner: null,
+      ));
+      return;
+    }
+
     _emit(_snapshot.copyWith(
       isVideoMode: enableVideo,
       isBuffering: _player != null && track != null,

@@ -810,6 +810,7 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
           if (renderWebPlayer) ...[
             _EmbeddedWebVideoStage(
               videoId: track.id,
+              isPlaying: widget.isPlaying,
               onOpenBrowser: () => WebBrowserScreen.open(
                 context,
                 initialUrl: '$_kWebWatchBase${track.id}',
@@ -984,11 +985,13 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
 
 class _EmbeddedWebVideoStage extends StatefulWidget {
   final String videoId;
+  final bool isPlaying;
   final VoidCallback? onOpenBrowser;
   final bool isFullscreen;
 
   const _EmbeddedWebVideoStage({
     required this.videoId,
+    this.isPlaying = true,
     this.onOpenBrowser,
     this.isFullscreen = false,
   });
@@ -1001,17 +1004,17 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   WebViewController? _ctrl;
   bool _isReady = false;
 
-  static final _kEmbedBase = String.fromCharCodes([
-    104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
-    116, 117, 98, 101, 46, 99, 111, 109, 47, 101, 109, 98, 101, 100, 47
-  ]);
-
   @override
   void initState() {
     super.initState();
     // Pause background audio engine so Web Video plays clearly without echo
     SonicAudioEngine.instance.pause();
     _initController();
+    Future.delayed(const Duration(milliseconds: 3500), () {
+      if (mounted && !_isReady) {
+        setState(() => _isReady = true);
+      }
+    });
   }
 
   @override
@@ -1020,49 +1023,15 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     if (oldWidget.videoId != widget.videoId) {
       _loadCurrent();
     }
-  }
-
-  String _buildPlayerHtml(String videoId) {
-    final embedSrc =
-        '$_kEmbedBase$videoId?autoplay=1&playsinline=1&enablejsapi=1&origin=https://soniclane.app&rel=0&controls=1&modestbranding=1&iv_load_policy=3&fs=1';
-    return '''<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; background: #000; overflow: hidden; }
-    html, body { width: 100%; height: 100%; background: #000; }
-    #player { width: 100%; height: 100%; border: none; }
-    .ytp-ad-overlay-container, .ytp-ad-message-container, .video-ads,
-    .ytp-ad-player-overlay, .ytp-ad-module, .annotation, .ytp-pause-overlay {
-      display: none !important;
+    if (oldWidget.isPlaying != widget.isPlaying) {
+      if (widget.isPlaying) {
+        _ctrl?.runJavaScript(
+            "try { document.querySelector('video')?.play(); } catch(e){}");
+      } else {
+        _ctrl?.runJavaScript(
+            "try { document.querySelector('video')?.pause(); } catch(e){}");
+      }
     }
-  </style>
-</head>
-<body>
-  <iframe
-    id="player"
-    src="$embedSrc"
-    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-    allowfullscreen>
-  </iframe>
-  <script>
-    function autoSkipAds() {
-      try {
-        var skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
-        if (skipBtn) skipBtn.click();
-        var video = document.querySelector('video');
-        var adShowing = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
-        if (video && adShowing && isFinite(video.duration) && video.currentTime < video.duration) {
-          video.currentTime = video.duration;
-        }
-      } catch (e) {}
-    }
-    setInterval(autoSkipAds, 200);
-  </script>
-</body>
-</html>''';
   }
 
   void _initController() {
@@ -1080,12 +1049,24 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
     _ctrl = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent('Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
+      ..setUserAgent(
+        'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+      )
       ..setBackgroundColor(Colors.black)
       ..setNavigationDelegate(
         NavigationDelegate(
+          onProgress: (p) {
+            if (p > 50) _injectCleanerScript();
+          },
+          onPageStarted: (_) {
+            _injectCleanerScript();
+          },
           onPageFinished: (_) {
+            _injectCleanerScript();
             if (mounted) setState(() => _isReady = true);
+          },
+          onWebResourceError: (err) {
+            debugPrint('[WebVideo] resource error: ${err.description}');
           },
         ),
       );
@@ -1095,17 +1076,80 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
       androidCtrl.setMediaPlaybackRequiresUserGesture(false);
     }
 
-    _ctrl!.loadHtmlString(
-      _buildPlayerHtml(widget.videoId),
-      baseUrl: 'https://soniclane.app',
-    );
+    _loadCurrent();
   }
 
   void _loadCurrent() {
-    _ctrl?.loadHtmlString(
-      _buildPlayerHtml(widget.videoId),
-      baseUrl: 'https://soniclane.app',
-    );
+    _ctrl?.loadRequest(Uri.parse('$_kWebWatchBase${widget.videoId}'));
+  }
+
+  Future<void> _injectCleanerScript() async {
+    const js = """
+      (function() {
+        function applyStyle() {
+          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container { width: 100% !important; height: 100% !important; background: #000 !important; } video, .video-stream, .html5-main-video { width: 100% !important; height: 100% !important; object-fit: contain !important; }';
+          var el = document.getElementById('sl-clean-style');
+          if (!el) {
+            el = document.createElement('style');
+            el.id = 'sl-clean-style';
+            var target = document.head || document.documentElement || document.body;
+            if (target) target.appendChild(el);
+          }
+          if (el) el.textContent = css;
+        }
+
+        applyStyle();
+
+        if (!window._slLoop) {
+          window._slLoop = setInterval(function() {
+            try {
+              applyStyle();
+
+              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button');
+              popups.forEach(function(p) { p.click(); });
+
+              var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
+              if (skip) skip.click();
+
+              var video = document.querySelector('video');
+              var ad = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
+              if (video && ad && isFinite(video.duration) && video.currentTime < video.duration) {
+                video.currentTime = video.duration;
+              }
+
+              var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="bật tiếng" i]');
+              if (unmuteBtn) {
+                unmuteBtn.click();
+              }
+
+              if (video) {
+                if (video.muted) video.muted = false;
+                video.volume = 1.0;
+                if (video.paused) {
+                  video.play().catch(function(){});
+                }
+              }
+
+              var playBtn = document.querySelector('.ytp-large-play-button');
+              if (playBtn && playBtn.offsetParent !== null) {
+                playBtn.click();
+              }
+            } catch (e) {}
+          }, 250);
+        }
+      })();
+    """;
+    try {
+      await _ctrl?.runJavaScript(js);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _ctrl?.runJavaScript(
+        "try { if (window._slLoop) clearInterval(window._slLoop); document.querySelector('video')?.pause(); } catch(e){}");
+    _ctrl?.loadRequest(Uri.parse('about:blank'));
+    super.dispose();
   }
 
   @override
