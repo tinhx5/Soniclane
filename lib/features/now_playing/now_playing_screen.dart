@@ -478,8 +478,8 @@ class CockpitDetailPane extends ConsumerWidget {
         children: [
           // Top Bar: [ ĐANG PHÁT ]  [ AUDIO | VIDEO ]  [ Phóng to ]  [ Thu nhỏ X ]
           Container(
-            height: 52,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: SonicTokens.surfaceLowest.withOpacity(0.92),
               border: const Border(
@@ -490,16 +490,16 @@ class CockpitDetailPane extends ConsumerWidget {
               children: [
                 const Icon(
                   Icons.play_circle_fill_rounded,
-                  size: 20,
+                  size: 16,
                   color: SonicTokens.secondaryContainer,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 const Text(
                   'ĐANG PHÁT',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
+                    letterSpacing: 0.8,
                     color: SonicTokens.secondaryLight,
                   ),
                 ),
@@ -534,12 +534,14 @@ class CockpitDetailPane extends ConsumerWidget {
                     }
                   },
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 IconButton(
                   tooltip: 'Phóng to toàn màn hình',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   icon: const Icon(
                     Icons.fullscreen_rounded,
-                    size: 26,
+                    size: 22,
                     color: SonicTokens.secondaryContainer,
                   ),
                   onPressed: () {
@@ -554,9 +556,11 @@ class CockpitDetailPane extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'Thu nhỏ',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   icon: const Icon(
                     Icons.close_rounded,
-                    size: 20,
+                    size: 18,
                     color: SonicTokens.textSecondary,
                   ),
                   onPressed: onClose,
@@ -564,88 +568,126 @@ class CockpitDetailPane extends ConsumerWidget {
               ],
             ),
           ),
-          // Scrollable Body of the detail player
+          // Flexible Middle Stage + Pinned Bottom Controls
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _MediaStageBox(
-                    track: track,
-                    isVideoMode: snap.isVideoMode,
-                    isPlaying: snap.isPlaying,
-                    position: snap.position,
-                    aspectRatio: 16 / 9,
-                    cleanMobileStage: true,
-                  ),
-                  const SizedBox(height: 14),
-                  // Title + Artist + Like + AddToPlaylist
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              track?.title ?? 'No Track Playing',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompactHeight = constraints.maxHeight < 360;
+
+                Widget content = Column(
+                  children: [
+                    // Stage Box: Flexibly fits available height while keeping 16:9
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                        child: Center(
+                          child: AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: _MediaStageBox(
+                              track: track,
+                              isVideoMode: snap.isVideoMode,
+                              isPlaying: snap.isPlaying,
+                              position: snap.position,
+                              aspectRatio: 16 / 9,
+                              cleanMobileStage: true,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              track?.artist ?? 'Soniclane Cabin',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: SonicTokens.textSecondary,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                      if (track != null) ...[
-                        IconButton(
-                          icon: Icon(
-                            snap.isLiked
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            color: snap.isLiked
-                                ? SonicTokens.primaryRed
-                                : SonicTokens.textSecondary,
-                            size: 22,
+                    ),
+                    // Bottom Controls (Title, Scrubber, Transport buttons)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Title + Artist + Like + Add
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      track?.title ?? 'No Track Playing',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      track?.artist ?? 'Soniclane Cabin',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: SonicTokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (track != null) ...[
+                                IconButton(
+                                  icon: Icon(
+                                    snap.isLiked
+                                        ? Icons.favorite_rounded
+                                        : Icons.favorite_border_rounded,
+                                    color: snap.isLiked
+                                        ? SonicTokens.primaryRed
+                                        : SonicTokens.textSecondary,
+                                    size: 19,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  onPressed: () =>
+                                      SonicAudioEngine.instance.toggleLikeCurrent(),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.playlist_add_rounded,
+                                      size: 21, color: SonicTokens.secondaryContainer),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  onPressed: () =>
+                                      AddToPlaylistSheet.show(context, track),
+                                ),
+                              ],
+                            ],
                           ),
-                          onPressed: () =>
-                              SonicAudioEngine.instance.toggleLikeCurrent(),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.playlist_add_rounded,
-                              size: 24, color: SonicTokens.secondaryContainer),
-                          onPressed: () =>
-                              AddToPlaylistSheet.show(context, track),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _CockpitScrubber(
-                    position: snap.position,
-                    duration: snap.duration,
-                  ),
-                  const SizedBox(height: 12),
-                  _TransportCluster(
-                    snap: snap,
-                    centerPlaySize: 58,
-                  ),
-                ],
-              ),
+                          const SizedBox(height: 4),
+                          _CockpitScrubber(
+                            position: snap.position,
+                            duration: snap.duration,
+                          ),
+                          const SizedBox(height: 6),
+                          _TransportCluster(
+                            snap: snap,
+                            centerPlaySize: 48,
+                            buttonMinSize: 36,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+
+                if (isCompactHeight) {
+                  return SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: SizedBox(
+                      height: 380,
+                      child: content,
+                    ),
+                  );
+                }
+                return content;
+              },
             ),
           ),
         ],
@@ -676,7 +718,7 @@ class _ModeChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: active ? activeColor : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
@@ -687,11 +729,11 @@ class _ModeChip extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon,
-                size: 16,
+                size: 13,
                 color: active
                     ? SonicTokens.surfaceBase
                     : SonicTokens.textSecondary),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
@@ -699,8 +741,8 @@ class _ModeChip extends StatelessWidget {
                     ? SonicTokens.surfaceBase
                     : SonicTokens.textSecondary,
                 fontWeight: FontWeight.w800,
-                fontSize: 12,
-                letterSpacing: 0.8,
+                fontSize: 10.5,
+                letterSpacing: 0.6,
               ),
             ),
           ],
@@ -2575,27 +2617,48 @@ class _CockpitScrubber extends StatelessWidget {
         : (duration - position);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Slider(
-          value: valMs,
-          min: 0,
-          max: maxMs,
-          onChanged: (v) {
-            SonicAudioEngine.instance.seekTo(Duration(milliseconds: v.round()));
-          },
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+            activeTrackColor: SonicTokens.secondaryContainer,
+            inactiveTrackColor: SonicTokens.surfaceContainer,
+            thumbColor: Colors.white,
+          ),
+          child: SizedBox(
+            height: 22,
+            child: Slider(
+              value: valMs,
+              min: 0,
+              max: maxMs,
+              onChanged: (v) {
+                SonicAudioEngine.instance
+                    .seekTo(Duration(milliseconds: v.round()));
+              },
+            ),
+          ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 MediaTrack.formatSeconds(position.inSeconds),
-                style: Theme.of(context).textTheme.labelSmall,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: SonicTokens.textSecondary,
+                ),
               ),
               Text(
                 '-${MediaTrack.formatSeconds(remaining.inSeconds)}',
-                style: Theme.of(context).textTheme.labelSmall,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: SonicTokens.textSecondary,
+                ),
               ),
             ],
           ),
@@ -2609,45 +2672,50 @@ class _TransportCluster extends StatelessWidget {
   final PlaybackSnapshot snap;
   final double centerPlaySize;
   final bool includeShuffleRepeat;
+  final double buttonMinSize;
 
   const _TransportCluster({
     required this.snap,
     required this.centerPlaySize,
     this.includeShuffleRepeat = true,
+    this.buttonMinSize = SonicTokens.minTouchTarget,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = centerPlaySize <= 52 || buttonMinSize < 44;
+
     return Row(
-      mainAxisAlignment: includeShuffleRepeat
-          ? MainAxisAlignment.spaceBetween
-          : MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         if (includeShuffleRepeat)
           CockpitTouchButton(
             onTap: () => SonicAudioEngine.instance.toggleShuffle(),
             backgroundColor: Colors.transparent,
             borderRadius: BorderRadius.circular(999),
+            minSize: buttonMinSize,
             child: Icon(
               Icons.shuffle_rounded,
-              size: 26,
+              size: isCompact ? 19 : 26,
               color: snap.isShuffle
                   ? SonicTokens.secondaryContainer
                   : SonicTokens.textSecondary,
             ),
           ),
         CockpitTouchButton(
-          onTap: () =>
-              SonicAudioEngine.instance.seekRelative(const Duration(seconds: -10)),
+          onTap: () => SonicAudioEngine.instance
+              .seekRelative(const Duration(seconds: -10)),
           backgroundColor: SonicTokens.surfaceContainer,
           borderRadius: BorderRadius.circular(999),
-          child: const Icon(Icons.replay_10_rounded, size: 28),
+          minSize: buttonMinSize,
+          child: Icon(Icons.replay_10_rounded, size: isCompact ? 20 : 28),
         ),
         CockpitTouchButton(
           onTap: () => SonicAudioEngine.instance.skipToPrevious(),
           backgroundColor: Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          child: const Icon(Icons.skip_previous_rounded, size: 36),
+          minSize: buttonMinSize,
+          child: Icon(Icons.skip_previous_rounded, size: isCompact ? 26 : 36),
         ),
         InkWell(
           onTap: () => SonicAudioEngine.instance.togglePlayPause(),
@@ -2668,19 +2736,19 @@ class _TransportCluster extends StatelessWidget {
               boxShadow: SonicTokens.crimsonGlow(opacity: 0.45),
             ),
             child: snap.isBuffering
-                ? const Center(
+                ? Center(
                     child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 3),
+                      width: isCompact ? 22 : 28,
+                      height: isCompact ? 22 : 28,
+                      child: const CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
                     ),
                   )
                 : Icon(
                     snap.isPlaying
                         ? Icons.pause_rounded
                         : Icons.play_arrow_rounded,
-                    size: 42,
+                    size: isCompact ? 28 : 42,
                     color: Colors.white,
                   ),
           ),
@@ -2689,23 +2757,26 @@ class _TransportCluster extends StatelessWidget {
           onTap: () => SonicAudioEngine.instance.skipToNext(),
           backgroundColor: Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          child: const Icon(Icons.skip_next_rounded, size: 36),
+          minSize: buttonMinSize,
+          child: Icon(Icons.skip_next_rounded, size: isCompact ? 26 : 36),
         ),
         CockpitTouchButton(
-          onTap: () =>
-              SonicAudioEngine.instance.seekRelative(const Duration(seconds: 10)),
+          onTap: () => SonicAudioEngine.instance
+              .seekRelative(const Duration(seconds: 10)),
           backgroundColor: SonicTokens.surfaceContainer,
           borderRadius: BorderRadius.circular(999),
-          child: const Icon(Icons.forward_10_rounded, size: 28),
+          minSize: buttonMinSize,
+          child: Icon(Icons.forward_10_rounded, size: isCompact ? 20 : 28),
         ),
         if (includeShuffleRepeat)
           CockpitTouchButton(
             onTap: () => SonicAudioEngine.instance.toggleRepeat(),
             backgroundColor: Colors.transparent,
             borderRadius: BorderRadius.circular(999),
+            minSize: buttonMinSize,
             child: Icon(
               Icons.repeat_rounded,
-              size: 26,
+              size: isCompact ? 19 : 26,
               color: snap.isRepeat
                   ? SonicTokens.secondaryContainer
                   : SonicTokens.textSecondary,

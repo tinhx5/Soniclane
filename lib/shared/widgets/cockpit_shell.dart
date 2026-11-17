@@ -13,6 +13,7 @@ import '../../features/now_playing/now_playing_screen.dart';
 import '../../features/search/search_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/user/user_hub_screen.dart';
+import '../../features/overlays/playlist_modals.dart';
 import 'common_badges.dart';
 import 'sonic_logo.dart';
 
@@ -115,6 +116,11 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                         onSelect: (i) {
                           FocusManager.instance.primaryFocus?.unfocus();
                           ref.read(activeTabProvider.notifier).state = i;
+                          if (i == 3 || i == 5) {
+                            ref
+                                .read(cockpitSplitDetailOpenProvider.notifier)
+                                .state = false;
+                          }
                           if (i == 1) {
                             ref.read(searchFocusTriggerProvider.notifier).state++;
                           }
@@ -169,7 +175,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                                         context),
                                               ),
                                             ),
-                                            // 50% Right Side: Playlist / Search / Home / Library Page
+                                            // 50% Right Side: Clean 1-Row Track List (Playlist / Search Results / Smart Recommendations)
                                             Expanded(
                                               flex: 1,
                                               child: Container(
@@ -181,10 +187,14 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                                     ),
                                                   ),
                                                 ),
-                                                padding: const EdgeInsets.only(left: 6),
-                                                child: IndexedStack(
-                                                  index: safeDesktopIdx,
-                                                  children: pages,
+                                                child: CockpitSplitTrackList(
+                                                  snap: snap,
+                                                  activeTab: safeDesktopIdx,
+                                                  onClose: () => ref
+                                                      .read(
+                                                          cockpitSplitDetailOpenProvider
+                                                              .notifier)
+                                                      .state = false,
                                                 ),
                                               ),
                                             ),
@@ -461,8 +471,8 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
     }
 
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: SonicTokens.surfaceLowest.withOpacity(0.92),
         border: const Border(
@@ -474,7 +484,7 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
           // Center Search Input
           Expanded(
             child: Container(
-              height: 44,
+              height: 36,
               decoration: BoxDecoration(
                 color: SonicTokens.surfaceHigh,
                 borderRadius: BorderRadius.circular(999),
@@ -484,19 +494,19 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
                       : SonicTokens.glassBorder,
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
                 children: [
                   const Icon(
                     Icons.search_rounded,
                     color: SonicTokens.secondaryContainer,
-                    size: 22,
+                    size: 18,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _searchCtrl,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(fontSize: 13),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
@@ -506,7 +516,7 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
                         hintText: 'Tìm kiếm bài hát, ca sĩ, danh sách phát...',
                         hintStyle: TextStyle(
                           color: SonicTokens.textTertiary,
-                          fontSize: 14,
+                          fontSize: 13,
                         ),
                       ),
                       textInputAction: TextInputAction.search,
@@ -520,8 +530,10 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
                   ),
                   if (_searchCtrl.text.isNotEmpty)
                     IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                       icon: const Icon(Icons.close_rounded,
-                          size: 18, color: SonicTokens.textSecondary),
+                          size: 16, color: SonicTokens.textSecondary),
                       onPressed: () {
                         _searchCtrl.clear();
                         _triggerSearch('');
@@ -531,14 +543,14 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           // Far Right Voice Search Mic Button
           InkWell(
             onTap: _triggerVoiceSearch,
             borderRadius: BorderRadius.circular(999),
             child: Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: SonicTokens.secondaryContainer,
                 borderRadius: BorderRadius.circular(999),
@@ -550,13 +562,13 @@ class _TopCockpitHeaderState extends ConsumerState<_TopCockpitHeader> {
                   Icon(
                     Icons.mic_rounded,
                     color: SonicTokens.surfaceBase,
-                    size: 22,
+                    size: 18,
                   ),
                   SizedBox(width: 6),
                   Text(
                     'Tìm giọng nói',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: SonicTokens.surfaceBase,
                     ),
@@ -588,7 +600,7 @@ class _LeftCockpitRail extends StatelessWidget {
         color: SonicTokens.surfaceLowest,
         border: Border(right: BorderSide(color: SonicTokens.divider)),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         children: [
           // 1. Logo và tên ở trên cùng (Bấm vào để về Trang chủ / Home)
@@ -598,8 +610,8 @@ class _LeftCockpitRail extends StatelessWidget {
             child: Tooltip(
               message: 'Trang chủ (Home)',
               child: Container(
-                width: 68,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                width: 64,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                 decoration: BoxDecoration(
                   color: activeIndex == 0 ? SonicTokens.surfaceHigh : Colors.transparent,
                   borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
@@ -613,14 +625,18 @@ class _LeftCockpitRail extends StatelessWidget {
                 child: const Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SonicLogo(size: 40, showWordmark: false),
-                    SizedBox(height: 6),
+                    SonicLogo(size: 30, showWordmark: false),
+                    SizedBox(height: 4),
                     Text(
-                      'SONICLANE',
+                      'Soniclane',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.clip,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
                         color: SonicTokens.textSecondary,
                       ),
                     ),
@@ -629,27 +645,27 @@ class _LeftCockpitRail extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           // 2. Thư viện
           _RailItem(
             icon: Icons.video_library_rounded,
-            label: 'LIBRARY',
+            label: 'Library',
             active: activeIndex == 2,
             onTap: () => onSelect(2),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           // 3. Playlist
           _RailItem(
             icon: Icons.queue_music_rounded,
-            label: 'PLAYLIST',
+            label: 'Playlist',
             active: activeIndex == 4,
             onTap: () => onSelect(4),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           // 4. Setting (Cài đặt)
           _RailItem(
             icon: Icons.settings_rounded,
-            label: 'SETTINGS',
+            label: 'Settings',
             active: activeIndex == 3,
             onTap: () => onSelect(3),
           ),
@@ -661,8 +677,8 @@ class _LeftCockpitRail extends StatelessWidget {
             child: Tooltip(
               message: 'Driver Profile • Tài khoản',
               child: Container(
-                width: 48,
-                height: 48,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: activeIndex == 5
@@ -681,7 +697,7 @@ class _LeftCockpitRail extends StatelessWidget {
                 child: const Icon(
                   Icons.person_rounded,
                   color: SonicTokens.primaryTint,
-                  size: 24,
+                  size: 20,
                 ),
               ),
             ),
@@ -711,8 +727,8 @@ class _RailItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
       child: Container(
-        width: 66,
-        height: 64,
+        width: 58,
+        height: 52,
         decoration: BoxDecoration(
           color: active ? SonicTokens.surfaceHigh : Colors.transparent,
           borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
@@ -726,17 +742,18 @@ class _RailItem extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 26,
+              size: 20,
               color: active
                   ? SonicTokens.secondaryContainer
                   : SonicTokens.textSecondary,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               label,
+              maxLines: 1,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+                fontSize: 9.5,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                 color: active
                     ? SonicTokens.secondaryContainer
                     : SonicTokens.textSecondary,
@@ -1119,6 +1136,283 @@ class _StatusAlertBanner extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Clean 1-track-per-row companion list for split cockpit mode (tablet/landscape).
+/// Displays playlist tracks, search results, or smart recommendations without any
+/// bulky filter chips or "Resume & Listen Again" cards.
+class CockpitSplitTrackList extends ConsumerWidget {
+  final PlaybackSnapshot snap;
+  final int activeTab;
+  final VoidCallback onClose;
+
+  const CockpitSplitTrackList({
+    super.key,
+    required this.snap,
+    required this.activeTab,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final search = ref.watch(searchProvider);
+    final home = ref.watch(homeFeedProvider);
+
+    List<MediaTrack> tracks = [];
+    String title = 'BÀI HÁT ĐỀ XUẤT';
+    IconData icon = Icons.auto_awesome_rounded;
+
+    if (activeTab == 1 && search.results.isNotEmpty) {
+      tracks = search.results;
+      title = 'KẾT QUẢ TÌM KIẾM';
+      icon = Icons.search_rounded;
+    } else if (snap.queue.isNotEmpty) {
+      tracks = snap.queue;
+      title = (snap.activePlaylistName != null &&
+              snap.activePlaylistName!.isNotEmpty)
+          ? snap.activePlaylistName!.toUpperCase()
+          : 'DANH SÁCH PHÁT';
+      icon = Icons.queue_music_rounded;
+    } else if (home.recommendations.isNotEmpty) {
+      tracks = home.recommendations;
+      title = 'GỢI Ý THÔNG MINH';
+      icon = Icons.auto_awesome_rounded;
+    } else if (snap.habitSuggestions.isNotEmpty) {
+      tracks = snap.habitSuggestions;
+      title = 'GỢI Ý THÔNG MINH';
+      icon = Icons.auto_awesome_rounded;
+    }
+
+    final currentId = snap.currentTrack?.id;
+
+    return Container(
+      color: SonicTokens.surfaceBase,
+      child: Column(
+        children: [
+          // Header Bar (height: 42)
+          Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: SonicTokens.surfaceLowest.withOpacity(0.92),
+              border: const Border(
+                bottom: BorderSide(color: SonicTokens.divider, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: SonicTokens.secondaryContainer),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: SonicTokens.secondaryLight,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: SonicTokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: SonicTokens.glassBorder),
+                  ),
+                  child: Text(
+                    '${tracks.length}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: SonicTokens.textSecondary,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Đóng danh sách chia đôi',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  icon: const Icon(Icons.close_rounded,
+                      size: 18, color: SonicTokens.textSecondary),
+                  onPressed: onClose,
+                ),
+              ],
+            ),
+          ),
+          // Single-Track-Per-Row List
+          Expanded(
+            child: tracks.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.queue_music_rounded,
+                            size: 36,
+                            color: SonicTokens.textTertiary.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Chưa có bài hát trong danh sách',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: SonicTokens.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    physics: const ClampingScrollPhysics(),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    itemCount: tracks.length,
+                    itemBuilder: (context, index) {
+                      final item = tracks[index];
+                      final isCurrent = item.id == currentId;
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: isCurrent
+                              ? SonicTokens.secondaryBlue.withOpacity(0.18)
+                              : SonicTokens.surfaceLowest.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isCurrent
+                                ? SonicTokens.secondaryContainer.withOpacity(0.5)
+                                : Colors.transparent,
+                            width: 1,
+                          ),
+                        ),
+                        child: InkWell(
+                          onTap: () async {
+                            await SonicAudioEngine.instance.playTrack(
+                              item,
+                              queue: tracks,
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 6),
+                            child: Row(
+                              children: [
+                                // Thumbnail (16:9 ratio, compact 50x32)
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: SizedBox(
+                                        width: 50,
+                                        height: 32,
+                                        child: TrackArtwork(
+                                          url: item.thumbnailUrl,
+                                          width: 50,
+                                          height: 32,
+                                          fallbackIcon:
+                                              Icons.music_note_rounded,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isCurrent)
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.45),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Icon(
+                                            snap.isPlaying
+                                                ? Icons.graphic_eq_rounded
+                                                : Icons.play_arrow_rounded,
+                                            size: 16,
+                                            color: SonicTokens.secondaryContainer,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(width: 10),
+                                // Title and Subtitle
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: isCurrent
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                          color: isCurrent
+                                              ? SonicTokens.secondaryContainer
+                                              : Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.artist.isNotEmpty
+                                            ? item.artist
+                                            : 'Soniclane',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          color: SonicTokens.textTertiary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // Duration
+                                if (item.durationSeconds > 0)
+                                  Text(
+                                    item.formattedDuration,
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: SonicTokens.textTertiary,
+                                    ),
+                                  ),
+                                const SizedBox(width: 4),
+                                // Options Menu
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.more_vert_rounded,
+                                    size: 18,
+                                    color: SonicTokens.textSecondary,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () =>
+                                      AddToPlaylistSheet.show(context, item),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

@@ -10,6 +10,6 @@ class MainActivity: AudioServiceActivity() {
     }
 
     override fun getRenderMode(): RenderMode {
-        return RenderMode.texture
+        return RenderMode.surface
     }
 }
