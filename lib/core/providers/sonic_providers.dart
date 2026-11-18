@@ -21,6 +21,9 @@ final resumeCardVisibleProvider = StateProvider<bool>((ref) => true);
 /// Controls whether the 50/50 split detail player is open in landscape / tablet mode.
 final cockpitSplitDetailOpenProvider = StateProvider<bool>((ref) => false);
 
+/// Controls whether the cockpit video player is expanded in seamless in-place fullscreen mode.
+final cockpitVideoFullscreenProvider = StateProvider<bool>((ref) => false);
+
 // --- Audio Engine Stream & State ---
 final playbackSnapshotProvider = StreamProvider<PlaybackSnapshot>((ref) async* {
   yield SonicAudioEngine.instance.snapshot;

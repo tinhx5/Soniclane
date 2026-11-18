@@ -103,6 +103,9 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
             final isKeyboardOpen = hasKeyboard || isTyping;
             final isDetailOpen = ref.watch(cockpitSplitDetailOpenProvider) &&
                 snap.currentTrack != null;
+            final isVideoFullscreen = ref.watch(cockpitVideoFullscreenProvider) &&
+                isDetailOpen &&
+                snap.isVideoMode;
 
             if (isDesktopOrTablet) {
               return Scaffold(
@@ -112,11 +115,13 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                   behavior: HitTestBehavior.translucent,
                   child: Row(
                     children: [
-                      _LeftCockpitRail(
+                      if (!isVideoFullscreen)
+                        _LeftCockpitRail(
                         activeIndex: activeTab,
                         userHubSubTab: userHubSubTab,
                         onSelect: (i) {
                           FocusManager.instance.primaryFocus?.unfocus();
+                          ref.read(cockpitVideoFullscreenProvider.notifier).state = false;
                           if (i == 2) {
                             ref.read(userHubSubTabProvider.notifier).state = 0;
                             ref.read(activeTabProvider.notifier).state = 5;
@@ -149,7 +154,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                           children: [
                             Column(
                               children: [
-                                if (safeDesktopIdx != 5 && safeDesktopIdx != 3)
+                                if (!isVideoFullscreen && safeDesktopIdx != 5 && safeDesktopIdx != 3)
                                   TopCockpitHeader(
                                     isParked: motion?.isParked ?? true,
                                     showLogoWordmark: true,
@@ -181,44 +186,59 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                   child: isDetailOpen
                                       ? Row(
                                           children: [
-                                            // 50% Left Side: Cockpit Detail Player (Video/Audio, Scrubber, Controls)
+                                            // Left Side: Cockpit Detail Player (Video/Audio, Scrubber, Controls)
                                             Expanded(
                                               flex: 1,
                                               child: CockpitDetailPane(
                                                 snap: snap,
-                                                onClose: () => ref
-                                                    .read(
-                                                        cockpitSplitDetailOpenProvider
-                                                            .notifier)
-                                                    .state = false,
+                                                isFullscreen: isVideoFullscreen,
+                                                onToggleFullscreen: () =>
+                                                    ref
+                                                        .read(cockpitVideoFullscreenProvider.notifier)
+                                                        .state = !isVideoFullscreen,
+                                                onClose: () {
+                                                  ref
+                                                      .read(cockpitVideoFullscreenProvider.notifier)
+                                                      .state = false;
+                                                  ref
+                                                      .read(cockpitSplitDetailOpenProvider.notifier)
+                                                      .state = false;
+                                                  SonicAudioEngine.instance.pause();
+                                                },
                                                 onOpenFullscreen: () =>
-                                                    NowPlayingScreen.open(
-                                                        context),
+                                                    ref
+                                                        .read(cockpitVideoFullscreenProvider.notifier)
+                                                        .state = !isVideoFullscreen,
                                               ),
                                             ),
-                                            // 50% Right Side: Clean 1-Row Track List (Playlist / Search Results / Smart Recommendations)
-                                            Expanded(
-                                              flex: 1,
-                                              child: Container(
-                                                decoration: const BoxDecoration(
-                                                  border: Border(
-                                                    left: BorderSide(
-                                                      color: SonicTokens.divider,
-                                                      width: 1,
+                                            // Right Side: Clean 1-Row Track List (Playlist / Search Results / Smart Recommendations)
+                                            if (!isVideoFullscreen)
+                                              Expanded(
+                                                flex: 1,
+                                                child: Container(
+                                                  decoration: const BoxDecoration(
+                                                    border: Border(
+                                                      left: BorderSide(
+                                                        color: SonicTokens.divider,
+                                                        width: 1,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                                child: CockpitSplitTrackList(
-                                                  snap: snap,
-                                                  activeTab: safeDesktopIdx,
-                                                  onClose: () => ref
-                                                      .read(
-                                                          cockpitSplitDetailOpenProvider
-                                                              .notifier)
-                                                      .state = false,
+                                                  child: CockpitSplitTrackList(
+                                                    snap: snap,
+                                                    activeTab: safeDesktopIdx,
+                                                    onClose: () {
+                                                      ref
+                                                          .read(cockpitVideoFullscreenProvider.notifier)
+                                                          .state = false;
+                                                      ref
+                                                          .read(cockpitSplitDetailOpenProvider.notifier)
+                                                          .state = false;
+                                                      SonicAudioEngine.instance.pause();
+                                                    },
+                                                  ),
                                                 ),
                                               ),
-                                            ),
                                           ],
                                         )
                                       : IndexedStack(
@@ -228,7 +248,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                 ),
                               ],
                             ),
-                            if (snap.statusBanner != null && !isKeyboardOpen)
+                            if (snap.statusBanner != null && !isKeyboardOpen && !isVideoFullscreen)
                               Positioned(
                                 left: 20,
                                 right: 20,

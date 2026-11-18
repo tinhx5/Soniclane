@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../core/models/media_models.dart';
 import '../../core/providers/sonic_providers.dart';
 import '../../core/services/lyrics_service.dart';
@@ -47,6 +48,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   int _rightQueueTab = 0; // 0: PLAYLIST, 1: HABIT AI
   bool _isFullscreenOpen = false;
   bool _userDismissedFullscreenInLandscape = false;
+  bool _isPhoneFullscreen = false;
 
   Future<void> _onToggleVideoMode(bool wantVideo, PlaybackSnapshot snap) async {
     if (wantVideo == snap.isVideoMode) return;
@@ -90,34 +92,66 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       _userDismissedFullscreenInLandscape = false;
     }
 
-    // Auto-fullscreen when phone device rotates to landscape while in Video mode
-    if (isMobile &&
-        snap.isVideoMode &&
-        orientation == Orientation.landscape &&
-        !_isFullscreenOpen &&
-        !_userDismissedFullscreenInLandscape) {
-      _isFullscreenOpen = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        final isCustomStream =
-            track != null && track.source == TrackSource.customStream;
-        if (isCustomStream) {
-          await _WebFullscreenVideoPage.open(context, track.id);
-        } else {
-          final vc = SonicAudioEngine.instance.videoController;
-          if (vc != null) {
-            await _FullscreenVideoPage.open(context, vc);
-          }
-        }
-        if (mounted) {
-          setState(() {
-            _isFullscreenOpen = false;
-            if (MediaQuery.orientationOf(context) == Orientation.landscape) {
-              _userDismissedFullscreenInLandscape = true;
-            }
-          });
-        }
-      });
+    final showFullscreenVideo = snap.isVideoMode &&
+        track != null &&
+        (_isPhoneFullscreen ||
+            (isMobile &&
+                orientation == Orientation.landscape &&
+                !_userDismissedFullscreenInLandscape));
+
+    if (showFullscreenVideo) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            _MediaStageBox(
+              track: track,
+              isVideoMode: true,
+              isPlaying: snap.isPlaying,
+              position: snap.position,
+              aspectRatio: MediaQuery.sizeOf(context).aspectRatio,
+              cleanMobileStage: true,
+              isFullscreen: true,
+              onToggleFullscreen: () {
+                setState(() {
+                  _isPhoneFullscreen = false;
+                  if (orientation == Orientation.landscape) {
+                    _userDismissedFullscreenInLandscape = true;
+                  }
+                });
+              },
+            ),
+            Positioned(
+              top: 16,
+              left: 16,
+              child: SafeArea(
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isPhoneFullscreen = false;
+                      if (orientation == Orientation.landscape) {
+                        _userDismissedFullscreenInLandscape = true;
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.65),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(Icons.fullscreen_exit_rounded,
+                        color: Colors.white, size: 24),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return CallbackShortcuts(
@@ -227,6 +261,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                             position: snap.position,
                             aspectRatio: 16 / 9,
                             cleanMobileStage: true,
+                            onToggleFullscreen: () =>
+                                setState(() => _isPhoneFullscreen = true),
                           ),
                           const SizedBox(height: 18),
                           _CleanMobileTitleBlock(track: track),
@@ -363,6 +399,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                           position: snap.position,
                           aspectRatio: 16 / 9,
                           cleanMobileStage: false,
+                          onToggleFullscreen: () =>
+                              setState(() => _isPhoneFullscreen = true),
                         ),
                         const SizedBox(height: 16),
                         _TrackTitleRow(
@@ -455,19 +493,84 @@ class _AudioVideoTogglePill extends StatelessWidget {
 /// Opens alongside the playlist or search results, with an option to expand to full screen.
 class CockpitDetailPane extends ConsumerWidget {
   final PlaybackSnapshot snap;
+  final bool isFullscreen;
   final VoidCallback onClose;
   final VoidCallback onOpenFullscreen;
+  final VoidCallback? onToggleFullscreen;
 
   const CockpitDetailPane({
     super.key,
     required this.snap,
+    this.isFullscreen = false,
     required this.onClose,
     required this.onOpenFullscreen,
+    this.onToggleFullscreen,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final track = snap.currentTrack;
+
+    if (isFullscreen && snap.isVideoMode) {
+      return Container(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _MediaStageBox(
+              track: track,
+              isVideoMode: snap.isVideoMode,
+              isPlaying: snap.isPlaying,
+              position: snap.position,
+              aspectRatio: MediaQuery.sizeOf(context).aspectRatio,
+              cleanMobileStage: true,
+              isFullscreen: true,
+              onToggleFullscreen: onToggleFullscreen ?? onOpenFullscreen,
+            ),
+            Positioned(
+              top: 14,
+              left: 14,
+              child: SafeArea(
+                child: InkWell(
+                  onTap: onToggleFullscreen ?? onOpenFullscreen,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.65),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(Icons.fullscreen_exit_rounded,
+                        color: Colors.white, size: 24),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 14,
+              right: 14,
+              child: SafeArea(
+                child: InkWell(
+                  onTap: onClose,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.65),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.white, size: 24),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       decoration: const BoxDecoration(
@@ -544,15 +647,7 @@ class CockpitDetailPane extends ConsumerWidget {
                     size: 22,
                     color: SonicTokens.secondaryContainer,
                   ),
-                  onPressed: () {
-                    final isCustomStream = track != null &&
-                        track.source == TrackSource.customStream;
-                    if (snap.isVideoMode && isCustomStream) {
-                      _WebFullscreenVideoPage.open(context, track.id);
-                    } else {
-                      onOpenFullscreen();
-                    }
-                  },
+                  onPressed: onToggleFullscreen ?? onOpenFullscreen,
                 ),
                 IconButton(
                   tooltip: 'Thu nhỏ',
@@ -590,6 +685,8 @@ class CockpitDetailPane extends ConsumerWidget {
                               position: snap.position,
                               aspectRatio: 16 / 9,
                               cleanMobileStage: true,
+                              onToggleFullscreen:
+                                  onToggleFullscreen ?? onOpenFullscreen,
                             ),
                           ),
                         ),
@@ -759,14 +856,19 @@ class _MediaStageBox extends StatefulWidget {
   final Duration position;
   final double aspectRatio;
   final bool cleanMobileStage;
+  final bool isFullscreen;
+  final VoidCallback? onToggleFullscreen;
 
   const _MediaStageBox({
+    super.key,
     required this.track,
     required this.isVideoMode,
     required this.isPlaying,
     required this.position,
     required this.aspectRatio,
     this.cleanMobileStage = true,
+    this.isFullscreen = false,
+    this.onToggleFullscreen,
   });
 
   @override
@@ -802,81 +904,88 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
         vc != null &&
         hasPlayableNativeVideo;
 
-    Widget stage = AspectRatio(
-      aspectRatio: widget.aspectRatio,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (renderWebPlayer) ...[
-            _EmbeddedWebVideoStage(
-              videoId: track.id,
-              isPlaying: widget.isPlaying,
-              onOpenBrowser: () => WebBrowserScreen.open(
-                context,
-                initialUrl: '$_kWebWatchBase${track.id}',
+    final stageContent = Stack(
+      fit: StackFit.expand,
+      children: [
+        if (renderWebPlayer) ...[
+          _EmbeddedWebVideoStage(
+            key: ValueKey('embedded_web_stage_${track.id}'),
+            videoId: track.id,
+            isPlaying: widget.isPlaying,
+            isFullscreen: widget.isFullscreen,
+            onToggleFullscreen: widget.onToggleFullscreen,
+            onOpenBrowser: () => WebBrowserScreen.open(
+              context,
+              initialUrl: '$_kWebWatchBase${track.id}',
+            ),
+          ),
+        ] else if (canRenderNativeVideo) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(
+                widget.isFullscreen ? 0 : SonicTokens.radiusXl),
+            child: ColoredBox(
+              color: Colors.black,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  GestureDetector(
+                    onDoubleTap: () => widget.onToggleFullscreen != null
+                        ? widget.onToggleFullscreen!()
+                        : _FullscreenVideoPage.open(context, vc),
+                    child: Video(
+                      controller: vc,
+                      controls: NoVideoControls,
+                      pauseUponEnteringBackgroundMode: false,
+                      wakelock: false,
+                    ),
+                  ),
+                  ValueListenableBuilder<Rect?>(
+                    valueListenable: vc.rect,
+                    builder: (context, rect, _) {
+                      final ready =
+                          rect != null && rect.width > 1 && rect.height > 1;
+                      if (ready) return const SizedBox.shrink();
+                      return Container(
+                        color: Colors.black,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: const Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 26,
+                              height: 26,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: SonicTokens.secondaryContainer,
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Loading video stream...',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
-          ] else if (canRenderNativeVideo) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-              child: ColoredBox(
-                color: Colors.black,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    GestureDetector(
-                      onDoubleTap: () => _FullscreenVideoPage.open(context, vc),
-                      child: Video(
-                        controller: vc,
-                        controls: NoVideoControls,
-                        pauseUponEnteringBackgroundMode: false,
-                        wakelock: false,
-                      ),
-                    ),
-                    ValueListenableBuilder<Rect?>(
-                      valueListenable: vc.rect,
-                      builder: (context, rect, _) {
-                        final ready =
-                            rect != null && rect.width > 1 && rect.height > 1;
-                        if (ready) return const SizedBox.shrink();
-                        return Container(
-                          color: Colors.black,
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: const Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 26,
-                                height: 26,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: SonicTokens.secondaryContainer,
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                'Loading video stream...',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          ),
+          if (!widget.isFullscreen)
             Positioned(
               bottom: 10,
               right: 10,
               child: InkWell(
-                onTap: () => _FullscreenVideoPage.open(context, vc),
+                onTap: () => widget.onToggleFullscreen != null
+                    ? widget.onToggleFullscreen!()
+                    : _FullscreenVideoPage.open(context, vc),
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
                   width: 42,
@@ -894,85 +1003,92 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
                 ),
               ),
             ),
-          ] else ...[
-            TrackArtwork(
-              url: artUrl,
-              radius: SonicTokens.radiusXl,
-              fallbackIcon: Icons.album_rounded,
-            ),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.28),
-                      Colors.black.withOpacity(0.62),
-                    ],
-                  ),
-                ),
-                child: track != null
-                    ? _AudioWaveformAndLyricsOverlay(
-                        track: track,
-                        isPlaying: widget.isPlaying,
-                        position: widget.position,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ),
-          ],
-          if (!widget.cleanMobileStage && track != null) ...[
-            if (!widget.isVideoMode)
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: SonicTokens.surfaceLowest.withOpacity(0.82),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.circle,
-                          size: 8, color: SonicTokens.secondaryContainer),
-                      const SizedBox(width: 6),
-                      Text(
-                        track.source == TrackSource.usb
-                            ? 'LOSSLESS USB HI-RES'
-                            : 'CABIN AUDIO',
-                        style: const TextStyle(
-                          color: SonicTokens.secondaryLight,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
+        ] else ...[
+          TrackArtwork(
+            url: artUrl,
+            radius: SonicTokens.radiusXl,
+            fallbackIcon: Icons.album_rounded,
+          ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.28),
+                    Colors.black.withOpacity(0.62),
+                  ],
                 ),
               ),
+              child: track != null
+                  ? _AudioWaveformAndLyricsOverlay(
+                      track: track,
+                      isPlaying: widget.isPlaying,
+                      position: widget.position,
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ],
+        if (!widget.cleanMobileStage && track != null) ...[
+          if (!widget.isVideoMode)
             Positioned(
               top: 12,
-              right: 12,
-              child: SourceBadgeChip(source: track.source),
+              left: 12,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: SonicTokens.surfaceLowest.withOpacity(0.82),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.circle,
+                        size: 8, color: SonicTokens.secondaryContainer),
+                    const SizedBox(width: 6),
+                    Text(
+                      track.source == TrackSource.usb
+                          ? 'LOSSLESS USB HI-RES'
+                          : 'CABIN AUDIO',
+                      style: const TextStyle(
+                        color: SonicTokens.secondaryLight,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
+          Positioned(
+            top: 12,
+            right: 12,
+            child: SourceBadgeChip(source: track.source),
+          ),
         ],
-      ),
+      ],
     );
+
+    Widget stage = widget.isFullscreen
+        ? stageContent
+        : AspectRatio(
+            aspectRatio: widget.aspectRatio,
+            child: stageContent,
+          );
 
     return Container(
       decoration: BoxDecoration(
         color: (canRenderNativeVideo || renderWebPlayer)
             ? Colors.black
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-        border: widget.isVideoMode
+        borderRadius: BorderRadius.circular(
+            widget.isFullscreen ? 0 : SonicTokens.radiusXl),
+        border: widget.isVideoMode && !widget.isFullscreen
             ? Border.all(color: Colors.white.withOpacity(0.12))
             : null,
         boxShadow:
@@ -988,12 +1104,15 @@ class _EmbeddedWebVideoStage extends StatefulWidget {
   final bool isPlaying;
   final VoidCallback? onOpenBrowser;
   final bool isFullscreen;
+  final VoidCallback? onToggleFullscreen;
 
   const _EmbeddedWebVideoStage({
+    super.key,
     required this.videoId,
     this.isPlaying = true,
     this.onOpenBrowser,
     this.isFullscreen = false,
+    this.onToggleFullscreen,
   });
 
   @override
@@ -1007,6 +1126,10 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   @override
   void initState() {
     super.initState();
+    // Keep screen awake while watching video
+    try {
+      WakelockPlus.enable();
+    } catch (_) {}
     // Pause background audio engine so Web Video plays clearly without echo
     SonicAudioEngine.instance.pause();
     _initController();
@@ -1113,7 +1236,8 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
             try {
               applyStyle();
 
-              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button');
+              // Auto-dismiss consent, upsell, and inactivity / "Still watching?" prompts
+              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button, yt-confirm-dialog-renderer button, #confirm-button button, .ytp-pause-overlay button, button[aria-label*="Continue" i], button[aria-label*="Tiếp tục" i], button[aria-label*="Yes" i], button[aria-label*="Có" i]');
               popups.forEach(function(p) { p.click(); });
 
               var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
@@ -1121,7 +1245,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
               var video = document.querySelector('video');
               var ad = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
-              if (video && ad && isFinite(video.duration) && video.currentTime < video.duration) {
+              if (video && ad && isFinite(video.duration) && video.duration > 0 && video.duration < 86400 && video.currentTime < video.duration) {
                 video.currentTime = video.duration;
               }
 
@@ -1130,8 +1254,20 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 unmuteBtn.click();
               }
 
+              // Auto-sync live stream edge & auto-retry on network error
+              var liveBadge = document.querySelector('.ytp-live-badge:not(.ytp-live-badge-live), button.ytp-live-badge[disabled]');
+              if (liveBadge && video && (video.paused || video.readyState < 2)) {
+                liveBadge.click();
+              }
+
+              var retryBtn = document.querySelector('.player-error-message button, .ytp-error button, button[aria-label*="Retry" i], button[aria-label*="Thử lại" i]');
+              if (retryBtn) retryBtn.click();
+
               if (video) {
-                if (video.paused) {
+                if (video.error) {
+                  video.load();
+                  video.play().catch(function(){});
+                } else if (video.paused) {
                   video.play().catch(function() {
                     video.muted = true;
                     video.play().catch(function(){});
@@ -1149,7 +1285,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 playBtn.click();
               }
             } catch (e) {}
-          }, 250);
+          }, 350);
 
           ['click', 'touchstart', 'pointerdown'].forEach(function(evt) {
             document.addEventListener(evt, function() {
@@ -1171,6 +1307,9 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   @override
   void dispose() {
+    try {
+      WakelockPlus.disable();
+    } catch (_) {}
     _ctrl?.runJavaScript(
         "try { if (window._slLoop) clearInterval(window._slLoop); document.querySelector('video')?.pause(); } catch(e){}");
     _ctrl?.loadRequest(Uri.parse('about:blank'));
@@ -1296,8 +1435,8 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
               bottom: 10,
               right: 10,
               child: InkWell(
-                onTap: () =>
-                    _WebFullscreenVideoPage.open(context, widget.videoId),
+                onTap: widget.onToggleFullscreen ??
+                    () => _WebFullscreenVideoPage.open(context, widget.videoId),
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
                   width: 38,

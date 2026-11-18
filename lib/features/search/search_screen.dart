@@ -181,8 +181,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                 focusNode: _searchFocusNode,
                                 keyboardType: TextInputType.text,
                                 textInputAction: TextInputAction.search,
+                                textAlignVertical: TextAlignVertical.center,
                                 style: const TextStyle(fontSize: 15),
                                 decoration: const InputDecoration(
+                                  isDense: true,
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,

@@ -155,8 +155,10 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
                             focusNode: _searchFocusNode,
                             keyboardType: TextInputType.text,
                             textInputAction: TextInputAction.search,
+                            textAlignVertical: TextAlignVertical.center,
                             style: const TextStyle(fontSize: 12.5),
                             decoration: const InputDecoration(
+                              isDense: true,
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
@@ -283,8 +285,10 @@ class TopCockpitHeaderState extends ConsumerState<TopCockpitHeader> {
                         focusNode: _searchFocusNode,
                         keyboardType: TextInputType.text,
                         textInputAction: TextInputAction.search,
+                        textAlignVertical: TextAlignVertical.center,
                         style: const TextStyle(fontSize: 13),
                         decoration: const InputDecoration(
+                          isDense: true,
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
