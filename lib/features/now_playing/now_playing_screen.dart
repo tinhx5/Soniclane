@@ -27,16 +27,6 @@ final _kWebWatchBase = String.fromCharCodes([
   98, 101, 46, 99, 111, 109, 47, 119, 97, 116, 99, 104, 63, 118, 61
 ]);
 
-final _kEmbedBase = String.fromCharCodes([
-  104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
-  116, 117, 98, 101, 46, 99, 111, 109, 47, 101, 109, 98, 101, 100, 47
-]);
-
-final _kOrigin = String.fromCharCodes([
-  104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
-  116, 117, 98, 101, 46, 99, 111, 109
-]);
-
 class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
 
@@ -800,24 +790,33 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
             track.source == TrackSource.local ||
             track.source == TrackSource.googleDrive);
 
-    // If native video stream is available (from custom server in Settings or local/USB),
-    // ALWAYS prefer native hardware video playback!
-    // If no direct video stream is available, use the instant embedded Web Player.
-    final canRenderNativeVideo = widget.isVideoMode &&
-        vc != null &&
-        hasPlayableNativeVideo;
-
+    // On mobile devices & tablets, when in Video mode for online custom streams,
+    // ALWAYS render the instant Cốc Cốc-style Web Player with ad suppression!
+    // For local USB / Dashcam files, native mpv/media_kit is used.
     final renderWebPlayer = widget.isVideoMode &&
-        !canRenderNativeVideo &&
         _isMobileDevice &&
         isCustomStream;
+
+    final canRenderNativeVideo = widget.isVideoMode &&
+        !renderWebPlayer &&
+        vc != null &&
+        hasPlayableNativeVideo;
 
     Widget stage = AspectRatio(
       aspectRatio: widget.aspectRatio,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (canRenderNativeVideo) ...[
+          if (renderWebPlayer) ...[
+            _EmbeddedWebVideoStage(
+              videoId: track.id,
+              isPlaying: widget.isPlaying,
+              onOpenBrowser: () => WebBrowserScreen.open(
+                context,
+                initialUrl: '$_kWebWatchBase${track.id}',
+              ),
+            ),
+          ] else if (canRenderNativeVideo) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
               child: ColoredBox(
@@ -893,15 +892,6 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
                     size: 26,
                   ),
                 ),
-              ),
-            ),
-          ] else if (renderWebPlayer) ...[
-            _EmbeddedWebVideoStage(
-              videoId: track.id,
-              isPlaying: widget.isPlaying,
-              onOpenBrowser: () => WebBrowserScreen.open(
-                context,
-                initialUrl: '$_kWebWatchBase${track.id}',
               ),
             ),
           ] else ...[
@@ -1013,7 +1003,6 @@ class _EmbeddedWebVideoStage extends StatefulWidget {
 class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   WebViewController? _ctrl;
   bool _isReady = false;
-  bool _hasEmbedError = false;
 
   @override
   void initState() {
@@ -1021,7 +1010,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     // Pause background audio engine so Web Video plays clearly without echo
     SonicAudioEngine.instance.pause();
     _initController();
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    Future.delayed(const Duration(milliseconds: 3500), () {
       if (mounted && !_isReady) {
         setState(() => _isReady = true);
       }
@@ -1036,25 +1025,11 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     }
     if (oldWidget.isPlaying != widget.isPlaying) {
       if (widget.isPlaying) {
-        _ctrl?.runJavaScript('''
-          try {
-            var f = document.getElementById('sl-yt-frame');
-            if (f && f.contentWindow) {
-              f.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-            }
-            document.querySelector('video')?.play();
-          } catch(e){}
-        ''');
+        _ctrl?.runJavaScript(
+            "try { document.querySelector('video')?.play(); } catch(e){}");
       } else {
-        _ctrl?.runJavaScript('''
-          try {
-            var f = document.getElementById('sl-yt-frame');
-            if (f && f.contentWindow) {
-              f.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-            }
-            document.querySelector('video')?.pause();
-          } catch(e){}
-        ''');
+        _ctrl?.runJavaScript(
+            "try { document.querySelector('video')?.pause(); } catch(e){}");
       }
     }
   }
@@ -1078,37 +1053,15 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
         'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
       )
       ..setBackgroundColor(Colors.black)
-      ..addJavaScriptChannel(
-        'SonicBridge',
-        onMessageReceived: (JavaScriptMessage msg) {
-          if (msg.message.startsWith('EMBED_ERROR_')) {
-            if (mounted) {
-              setState(() => _hasEmbedError = true);
-            }
-          }
-        },
-      )
       ..setNavigationDelegate(
         NavigationDelegate(
-          onNavigationRequest: (NavigationRequest req) {
-            final uri = Uri.tryParse(req.url);
-            if (uri != null &&
-                (uri.path.contains('/watch') ||
-                    uri.host.endsWith('.be') ||
-                    (!uri.path.contains('/embed/') &&
-                        uri.host.contains('google')))) {
-              widget.onOpenBrowser?.call();
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.navigate;
-          },
           onProgress: (p) {
-            if (p > 60) _injectCleanerScript();
+            if (p > 50) _injectCleanerScript();
           },
           onPageStarted: (_) {
             _injectCleanerScript();
           },
-          onPageFinished: (url) {
+          onPageFinished: (_) {
             _injectCleanerScript();
             if (mounted) setState(() => _isReady = true);
           },
@@ -1121,81 +1074,17 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     if (_ctrl!.platform is AndroidWebViewController) {
       final androidCtrl = _ctrl!.platform as AndroidWebViewController;
       androidCtrl.setMediaPlaybackRequiresUserGesture(false);
-      final cookieManager = AndroidWebViewCookieManager(
-        const PlatformWebViewCookieManagerCreationParams(),
-      );
-      cookieManager.setAcceptThirdPartyCookies(androidCtrl, true);
     }
 
     _loadCurrent();
   }
 
-  String _buildIframeHtml(String videoId) {
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100vw;
-      height: 100vh;
-      background: #000;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #player-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
-    }
-    iframe {
-      width: 100% !important;
-      height: 100% !important;
-      border: 0 !important;
-    }
-  </style>
-</head>
-<body>
-  <div id="player-container">
-    <iframe
-      id="sl-yt-frame"
-      src="$_kEmbedBase$videoId?autoplay=1&playsinline=1&enablejsapi=1&origin=$_kOrigin&widget_referrer=$_kOrigin&rel=0&modestbranding=1&controls=1&fs=1"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-      referrerpolicy="strict-origin-when-cross-origin"
-      allowfullscreen>
-    </iframe>
-  </div>
-  <script>
-    window.addEventListener('message', function(e) {
-      try {
-        var msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (msg && (msg.event === 'onError' || msg.info === 150 || msg.info === 101 || msg.info === 152)) {
-          if (window.SonicBridge) {
-            window.SonicBridge.postMessage('EMBED_ERROR_' + (msg.info || ''));
-          }
-        }
-      } catch (err) {}
-    });
-  </script>
-</body>
-</html>
-''';
-  }
-
   void _loadCurrent() {
     if (mounted) {
-      setState(() {
-        _isReady = false;
-        _hasEmbedError = false;
-      });
+      setState(() => _isReady = false);
     }
-    final html = _buildIframeHtml(widget.videoId);
-    _ctrl?.loadHtmlString(html, baseUrl: _kOrigin);
-    Future.delayed(const Duration(milliseconds: 2500), () {
+    _ctrl?.loadRequest(Uri.parse('$_kWebWatchBase${widget.videoId}'));
+    Future.delayed(const Duration(milliseconds: 3000), () {
       if (mounted && !_isReady) {
         setState(() => _isReady = true);
       }
@@ -1205,64 +1094,73 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   Future<void> _injectCleanerScript() async {
     const js = """
       (function() {
-        function cleanup() {
-          try {
-            var selectors = [
-              'button[aria-label="Accept all"]',
-              'button[aria-label="Agree"]',
-              'button[aria-label="Dismiss"]',
-              'button[aria-label="No thanks"]',
-              'button[aria-label*="Chấp nhận" i]',
-              'button[aria-label*="Đồng ý" i]',
-              'button[aria-label*="Bỏ qua" i]',
-              'button[aria-label*="Không" i]',
-              '.upsell-dialog-renderer button',
-              'ytm-app-banner button'
-            ];
-            for (var i = 0; i < selectors.length; i++) {
-              var btns = document.querySelectorAll(selectors[i]);
-              for (var j = 0; j < btns.length; j++) {
-                try { btns[j].click(); } catch(e){}
-              }
-            }
-
-            var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
-            if (skip) {
-              try { skip.click(); } catch(e){}
-            }
-
-            var video = document.querySelector('video');
-            var ad = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
-            if (video && ad && isFinite(video.duration) && video.currentTime < video.duration) {
-              video.currentTime = video.duration;
-            }
-
-            if (video && video.paused) {
-              video.play().catch(function() {
-                video.muted = true;
-                video.play().catch(function(){});
-              });
-            }
-
-            var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="bật tiếng" i]');
-            if (unmuteBtn && unmuteBtn.offsetParent !== null) {
-              try { unmuteBtn.click(); } catch(e){}
-            }
-          } catch(e) {}
+        function applyStyle() {
+          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
+          var el = document.getElementById('sl-clean-style');
+          if (!el) {
+            el = document.createElement('style');
+            el.id = 'sl-clean-style';
+            var target = document.head || document.documentElement || document.body;
+            if (target) target.appendChild(el);
+          }
+          if (el) el.textContent = css;
         }
 
-        var style = document.getElementById('sl-clean-style');
-        if (!style) {
-          style = document.createElement('style');
-          style.id = 'sl-clean-style';
-          style.textContent = 'ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-app-banner, .upsell-dialog-renderer, ytd-masthead, #masthead-container, #secondary { display: none !important; }';
-          var target = document.head || document.documentElement || document.body;
-          if (target) target.appendChild(style);
-        }
+        applyStyle();
 
-        cleanup();
         if (!window._slLoop) {
-          window._slLoop = setInterval(cleanup, 500);
+          window._slLoop = setInterval(function() {
+            try {
+              applyStyle();
+
+              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button');
+              popups.forEach(function(p) { p.click(); });
+
+              var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
+              if (skip) skip.click();
+
+              var video = document.querySelector('video');
+              var ad = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
+              if (video && ad && isFinite(video.duration) && video.currentTime < video.duration) {
+                video.currentTime = video.duration;
+              }
+
+              var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="bật tiếng" i]');
+              if (unmuteBtn && unmuteBtn.offsetParent !== null) {
+                unmuteBtn.click();
+              }
+
+              if (video) {
+                if (video.paused) {
+                  video.play().catch(function() {
+                    video.muted = true;
+                    video.play().catch(function(){});
+                  });
+                } else {
+                  if (video.muted) {
+                    video.muted = false;
+                  }
+                  video.volume = 1.0;
+                }
+              }
+
+              var playBtn = document.querySelector('.ytp-large-play-button, .player-control-play-pause-icon, button[aria-label*="Play" i], button[aria-label*="Phát" i]');
+              if (playBtn && playBtn.offsetParent !== null) {
+                playBtn.click();
+              }
+            } catch (e) {}
+          }, 250);
+
+          ['click', 'touchstart', 'pointerdown'].forEach(function(evt) {
+            document.addEventListener(evt, function() {
+              var v = document.querySelector('video');
+              if (v) {
+                v.muted = false;
+                v.volume = 1.0;
+                if (v.paused) v.play().catch(function(){});
+              }
+            }, { passive: true });
+          });
         }
       })();
     """;
@@ -1273,16 +1171,8 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   @override
   void dispose() {
-    _ctrl?.runJavaScript("""
-      try {
-        if (window._slLoop) clearInterval(window._slLoop);
-        var f = document.getElementById('sl-yt-frame');
-        if (f && f.contentWindow) {
-          f.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-        }
-        document.querySelector('video')?.pause();
-      } catch(e){}
-    """);
+    _ctrl?.runJavaScript(
+        "try { if (window._slLoop) clearInterval(window._slLoop); document.querySelector('video')?.pause(); } catch(e){}");
     _ctrl?.loadRequest(Uri.parse('about:blank'));
     super.dispose();
   }
@@ -1313,7 +1203,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
         children: [
           if (widgetParams != null)
             WebViewWidget.fromPlatformCreationParams(params: widgetParams),
-          if (!_isReady && !_hasEmbedError)
+          if (!_isReady)
             Container(
               color: Colors.black,
               alignment: Alignment.center,
@@ -1335,60 +1225,6 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                       color: Colors.white70,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (_hasEmbedError)
-            Container(
-              color: Colors.black,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.video_library_rounded,
-                    color: SonicTokens.secondaryContainer,
-                    size: 40,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Video yêu cầu mở từ Web Player',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Tác giả hạn chế phát nhúng. Chạm bên dưới để xem trực tiếp không quảng cáo.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: SonicTokens.secondaryContainer,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    onPressed: widget.onOpenBrowser,
-                    icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                    label: const Text(
-                      'Mở Web Player',
-                      style:
-                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
