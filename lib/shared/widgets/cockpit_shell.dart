@@ -203,7 +203,10 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                                   ref
                                                       .read(cockpitSplitDetailOpenProvider.notifier)
                                                       .state = false;
-                                                  SonicAudioEngine.instance.pause();
+                                                  if (snap.isVideoMode) {
+                                                    SonicAudioEngine.instance.setVideoMode(false);
+                                                    SonicAudioEngine.instance.play();
+                                                  }
                                                 },
                                                 onOpenFullscreen: () =>
                                                     ref
@@ -234,7 +237,10 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                                       ref
                                                           .read(cockpitSplitDetailOpenProvider.notifier)
                                                           .state = false;
-                                                      SonicAudioEngine.instance.pause();
+                                                      if (snap.isVideoMode) {
+                                                        SonicAudioEngine.instance.setVideoMode(false);
+                                                        SonicAudioEngine.instance.play();
+                                                      }
                                                     },
                                                   ),
                                                 ),

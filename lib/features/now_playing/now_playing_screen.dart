@@ -77,6 +77,16 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 
   @override
+  void dispose() {
+    final snap = SonicAudioEngine.instance.snapshot;
+    if (snap.isVideoMode) {
+      SonicAudioEngine.instance.setVideoMode(false);
+      SonicAudioEngine.instance.play();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final snap = ref.watch(playbackSnapshotProvider).valueOrNull ??
         SonicAudioEngine.instance.snapshot;
