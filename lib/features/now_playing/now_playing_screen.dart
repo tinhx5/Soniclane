@@ -77,16 +77,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 
   @override
-  void dispose() {
-    final snap = SonicAudioEngine.instance.snapshot;
-    if (snap.isVideoMode) {
-      SonicAudioEngine.instance.setVideoMode(false);
-      SonicAudioEngine.instance.play();
-    }
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final snap = ref.watch(playbackSnapshotProvider).valueOrNull ??
         SonicAudioEngine.instance.snapshot;
@@ -219,7 +209,13 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               CockpitTouchButton(
-                onTap: () => Navigator.of(context).pop(),
+                onTap: () {
+                  if (snap.isVideoMode) {
+                    SonicAudioEngine.instance.setVideoMode(false);
+                    SonicAudioEngine.instance.play();
+                  }
+                  Navigator.of(context).pop();
+                },
                 backgroundColor: SonicTokens.surfaceCard,
                 borderRadius: BorderRadius.circular(999),
                 child: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),

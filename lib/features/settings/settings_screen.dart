@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/media_models.dart';
 import '../../core/providers/sonic_providers.dart';
 import '../../core/services/database_service.dart';
+import '../../core/services/media_source_service.dart';
 import '../../core/services/sonic_audio_engine.dart';
 import '../../core/services/stream_resolver.dart';
 import '../../core/theme/sonic_tokens.dart';
 import '../browser/web_browser_screen.dart';
+import '../overlays/add_source_modal.dart';
 import '../overlays/equalizer_modal.dart';
 import '../overlays/wifi_transfer_modal.dart';
 
@@ -375,6 +377,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           trailing: ElevatedButton(
             onPressed: () => WifiTransferModal.show(context),
             child: Text(wifi.isRunning ? 'Manage QR' : 'Setup'),
+          ),
+        ),
+        ListTile(
+          title: const Text('Media Servers & IPTV Sources'),
+          subtitle: Text(
+            MediaSourceService.instance.sources.isEmpty
+                ? 'Connect M3U, Jellyfin, Emby, Xtream, or Plex'
+                : '${MediaSourceService.instance.sources.length} external sources connected',
+          ),
+          trailing: ElevatedButton.icon(
+            onPressed: () => AddSourceModal.show(context),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Source'),
           ),
         ),
         ListTile(

@@ -5,7 +5,12 @@ enum TrackSource {
   customStream,
   usb,
   local,
-  googleDrive;
+  googleDrive,
+  m3u,
+  jellyfin,
+  emby,
+  xtream,
+  plex;
 
   String get badgeLabel {
     switch (this) {
@@ -17,6 +22,16 @@ enum TrackSource {
         return '📱 On-Device';
       case TrackSource.googleDrive:
         return '☁️ Drive';
+      case TrackSource.m3u:
+        return '📺 M3U Playlist';
+      case TrackSource.jellyfin:
+        return '🟣 Jellyfin';
+      case TrackSource.emby:
+        return '🟢 Emby';
+      case TrackSource.xtream:
+        return '📺 Xtream IPTV';
+      case TrackSource.plex:
+        return '🔶 Plex';
     }
   }
 
@@ -30,6 +45,16 @@ enum TrackSource {
         return 'LOCAL';
       case TrackSource.googleDrive:
         return 'DRIVE';
+      case TrackSource.m3u:
+        return 'M3U';
+      case TrackSource.jellyfin:
+        return 'JELLYFIN';
+      case TrackSource.emby:
+        return 'EMBY';
+      case TrackSource.xtream:
+        return 'XTREAM';
+      case TrackSource.plex:
+        return 'PLEX';
     }
   }
 
@@ -43,6 +68,16 @@ enum TrackSource {
         return SonicTokens.tertiaryLight;
       case TrackSource.googleDrive:
         return SonicTokens.successGreen;
+      case TrackSource.m3u:
+        return const Color(0xFF3B82F6);
+      case TrackSource.jellyfin:
+        return const Color(0xFFAA55FF);
+      case TrackSource.emby:
+        return const Color(0xFF52B54B);
+      case TrackSource.xtream:
+        return const Color(0xFF6366F1);
+      case TrackSource.plex:
+        return const Color(0xFFE5A00D);
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/services/billing_service.dart';
 import 'core/services/database_service.dart';
+import 'core/services/media_source_service.dart';
 import 'core/services/sonic_audio_engine.dart';
 import 'core/theme/app_theme.dart';
 import 'shared/widgets/cockpit_shell.dart';
@@ -30,6 +31,7 @@ Future<void> main() async {
 
   // Initialize Local SQLite DB, Billing & MediaKit / AudioService Engine
   await DatabaseService.instance.database;
+  await MediaSourceService.instance.init();
   await SonicAudioEngine.instance.initialize();
   await BillingService.instance.initialize(
     onProUnlocked: () async {
