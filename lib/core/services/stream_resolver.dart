@@ -459,8 +459,8 @@ class StreamResolver {
               followRedirects: true,
               maxRedirects: 5,
               validateStatus: (s) => s != null && s < 500,
-              headers: const {
-                'Range': 'bytes=0-1023',
+              headers: {
+                if (!trimmed.contains('.m3u8')) 'Range': 'bytes=0-1023',
                 'User-Agent': kStreamUserAgent,
               },
             ),

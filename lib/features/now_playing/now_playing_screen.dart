@@ -29,8 +29,7 @@ final _kWebWatchBase = String.fromCharCodes([
 
 final _kEmbedBase = String.fromCharCodes([
   104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 121, 111, 117,
-  116, 117, 98, 101, 45, 110, 111, 99, 111, 111, 107, 105, 101, 46, 99,
-  111, 109, 47, 101, 109, 98, 101, 100, 47
+  116, 117, 98, 101, 46, 99, 111, 109, 47, 101, 109, 98, 101, 100, 47
 ]);
 
 final _kOrigin = String.fromCharCodes([
@@ -1096,8 +1095,8 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
             if (uri != null &&
                 (uri.path.contains('/watch') ||
                     uri.host.endsWith('.be') ||
-                    (uri.host.contains('cookie') &&
-                        !uri.path.contains('/embed/')))) {
+                    (!uri.path.contains('/embed/') &&
+                        uri.host.contains('google')))) {
               widget.onOpenBrowser?.call();
               return NavigationDecision.prevent;
             }
@@ -1122,6 +1121,10 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     if (_ctrl!.platform is AndroidWebViewController) {
       final androidCtrl = _ctrl!.platform as AndroidWebViewController;
       androidCtrl.setMediaPlaybackRequiresUserGesture(false);
+      final cookieManager = AndroidWebViewCookieManager(
+        const PlatformWebViewCookieManagerCreationParams(),
+      );
+      cookieManager.setAcceptThirdPartyCookies(androidCtrl, true);
     }
 
     _loadCurrent();
@@ -1162,6 +1165,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
       id="sl-yt-frame"
       src="$_kEmbedBase$videoId?autoplay=1&playsinline=1&enablejsapi=1&origin=$_kOrigin&widget_referrer=$_kOrigin&rel=0&modestbranding=1&controls=1&fs=1"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin"
       allowfullscreen>
     </iframe>
   </div>
