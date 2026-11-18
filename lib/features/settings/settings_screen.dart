@@ -205,6 +205,95 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: 'IN-APP BROWSER & CUSTOM MEDIA SOURCE',
       icon: Icons.public_rounded,
       children: [
+        // 1. External Media Sources & IPTV (M3U, Jellyfin, Emby, Xtream, Plex)
+        ListTile(
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withOpacity(0.16),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.add_to_queue_rounded,
+                color: Color(0xFF10B981), size: 20),
+          ),
+          title: const Text(
+            'Add Media Source (IPTV / Server)',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            MediaSourceService.instance.sources.isEmpty
+                ? 'Connect M3U playlist, Jellyfin, Emby, Xtream, or Plex'
+                : '${MediaSourceService.instance.sources.length} active source(s): '
+                    '${MediaSourceService.instance.sources.map((s) => s.name).join(", ")}',
+          ),
+          trailing: ElevatedButton.icon(
+            onPressed: () async {
+              await AddSourceModal.show(context);
+              if (mounted) setState(() {});
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Source',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ),
+        if (MediaSourceService.instance.sources.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(
+              children: [
+                for (final src in MediaSourceService.instance.sources)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: SonicTokens.surfaceElevated,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: SonicTokens.glassBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          src.type == MediaSourceType.m3u
+                              ? Icons.list_alt_rounded
+                              : (src.type == MediaSourceType.xtream
+                                  ? Icons.live_tv_rounded
+                                  : Icons.dns_rounded),
+                          size: 18,
+                          color: const Color(0xFF10B981),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${src.name} (${src.itemCount} streams)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18, color: SonicTokens.errorRed),
+                          tooltip: 'Remove source',
+                          onPressed: () async {
+                            await MediaSourceService.instance.removeSource(src.id);
+                            ref.read(libraryProvider.notifier).refresh();
+                            if (mounted) setState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        const Divider(height: 1, indent: 16, endIndent: 16),
         ListTile(
           leading: const Icon(Icons.language_rounded,
               color: SonicTokens.secondaryContainer),
@@ -216,7 +305,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         ListTile(
           title: const Text(
-            'Media Server Connection',
+            'Custom Stream Server Connection',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
           subtitle: Text(
@@ -377,19 +466,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           trailing: ElevatedButton(
             onPressed: () => WifiTransferModal.show(context),
             child: Text(wifi.isRunning ? 'Manage QR' : 'Setup'),
-          ),
-        ),
-        ListTile(
-          title: const Text('Media Servers & IPTV Sources'),
-          subtitle: Text(
-            MediaSourceService.instance.sources.isEmpty
-                ? 'Connect M3U, Jellyfin, Emby, Xtream, or Plex'
-                : '${MediaSourceService.instance.sources.length} external sources connected',
-          ),
-          trailing: ElevatedButton.icon(
-            onPressed: () => AddSourceModal.show(context),
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('Add Source'),
           ),
         ),
         ListTile(

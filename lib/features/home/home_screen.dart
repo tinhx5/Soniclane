@@ -11,9 +11,11 @@ import '../../shared/widgets/common_badges.dart';
 import '../../shared/widgets/playback_launcher.dart';
 import '../browser/web_browser_screen.dart';
 import '../library/channel_detail_screen.dart';
+import '../overlays/add_source_modal.dart';
 import '../overlays/cloud_drive_modal.dart';
 import '../overlays/playlist_modals.dart';
 import '../overlays/wifi_transfer_modal.dart';
+import '../../core/services/media_source_service.dart';
 import 'history_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -25,6 +27,9 @@ class HomeScreen extends ConsumerWidget {
     final library = ref.watch(libraryProvider);
     final clipLink = ref.watch(clipboardBannerProvider);
     final showResume = ref.watch(resumeCardVisibleProvider);
+    final showAddSource = ref.watch(homeAddSourceVisibleProvider) &&
+        MediaSourceService.instance.sources.isEmpty &&
+        (home.listenAgain.isEmpty && home.resumeTrack == null);
 
     final snap = ref.watch(playbackSnapshotProvider).valueOrNull ??
         SonicAudioEngine.instance.snapshot;
@@ -56,6 +61,16 @@ class HomeScreen extends ConsumerWidget {
               if (clipLink != null) ...[
                 _ClipboardDetectedBanner(match: clipLink),
                 const SizedBox(height: 16),
+              ],
+
+              // Onboarding: Quick Add Media Sources when newly downloaded / empty sources
+              if (showAddSource) ...[
+                _HomeAddSourceQuickCard(
+                  onDismiss: () => ref
+                      .read(homeAddSourceVisibleProvider.notifier)
+                      .state = false,
+                ),
+                const SizedBox(height: 20),
               ],
 
               if (isWide) ...[
@@ -1064,7 +1079,7 @@ class _ByoSourceOnboardingCard extends ConsumerWidget {
           Text(
             hasCustomServer
                 ? 'Pull down to refresh, search for music, or import local USB & Cloud Drive files.'
-                : 'Soniclane plays your own local / USB MP3 & FLAC files, personal Google Drive audio, Wi-Fi Drop uploads, direct stream URLs, or your own Custom Media Server.',
+                : 'Soniclane plays your own local / USB MP3 & FLAC files, personal Google Drive audio, Wi-Fi Drop uploads, direct stream URLs, M3U playlists, IPTV servers (Jellyfin/Emby/Xtream/Plex), or your own Custom Media Server.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -1072,6 +1087,15 @@ class _ByoSourceOnboardingCard extends ConsumerWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
+              ElevatedButton.icon(
+                onPressed: () => AddSourceModal.show(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add_to_queue_rounded, size: 18),
+                label: const Text('Add Source (IPTV / Server)'),
+              ),
               ElevatedButton.icon(
                 onPressed: () {
                   ref.read(userHubSubTabProvider.notifier).state = 0;
@@ -1115,6 +1139,185 @@ class _ByoSourceOnboardingCard extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeAddSourceQuickCard extends StatelessWidget {
+  final VoidCallback onDismiss;
+
+  const _HomeAddSourceQuickCard({required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: SonicTokens.surfaceCard,
+        borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
+        border: Border.all(
+          color: const Color(0xFF10B981).withOpacity(0.4),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.add_to_queue_rounded,
+                    color: Color(0xFF10B981), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Connect Media Sources (IPTV / Server)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: SonicTokens.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Stream M3U playlists, IPTV channels, Jellyfin, Emby, or Plex servers directly in Soniclane.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: SonicTokens.textSecondary.withOpacity(0.9),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded,
+                    size: 18, color: SonicTokens.textSecondary),
+                tooltip: 'Dismiss',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: onDismiss,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => AddSourceModal.show(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text(
+                  'Add Source',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+              _SourceChip(
+                label: 'M3U Playlist',
+                icon: Icons.list_alt_rounded,
+                onTap: () => AddSourceModal.show(context,
+                    initialSource: MediaSourceType.m3u),
+              ),
+              _SourceChip(
+                label: 'Jellyfin',
+                icon: Icons.dns_rounded,
+                onTap: () => AddSourceModal.show(context,
+                    initialSource: MediaSourceType.jellyfin),
+              ),
+              _SourceChip(
+                label: 'Emby',
+                icon: Icons.play_circle_fill_rounded,
+                onTap: () => AddSourceModal.show(context,
+                    initialSource: MediaSourceType.emby),
+              ),
+              _SourceChip(
+                label: 'Xtream IPTV',
+                icon: Icons.live_tv_rounded,
+                onTap: () => AddSourceModal.show(context,
+                    initialSource: MediaSourceType.xtream),
+              ),
+              _SourceChip(
+                label: 'Plex',
+                icon: Icons.movie_rounded,
+                onTap: () => AddSourceModal.show(context,
+                    initialSource: MediaSourceType.plex),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SourceChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SourceChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: SonicTokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: SonicTokens.glassBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: const Color(0xFF10B981)),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: SonicTokens.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

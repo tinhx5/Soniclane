@@ -82,47 +82,8 @@ class LibraryScreen extends ConsumerWidget {
                                   OfflineDownloadsScreen.open(context),
                             ),
                             const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Connected Storage & Wireless Sync',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: () => AddSourceModal.show(context),
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.add_rounded, size: 15, color: Color(0xFF10B981)),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Add Source',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF10B981),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                            Text('Connected Storage & Wireless Sync',
+                                style: Theme.of(context).textTheme.titleMedium),
                             const SizedBox(height: 10),
                             _ConnectedStorageSection(
                               usbDevices: library.usbDevices,
@@ -158,7 +119,6 @@ class LibraryScreen extends ConsumerWidget {
                               onWifiTap: () =>
                                   WifiTransferModal.show(context),
                               onDriveTap: () => CloudDriveModal.show(context),
-                              onAddSource: () => AddSourceModal.show(context),
                             ),
                           ],
                         ),
@@ -199,47 +159,8 @@ class LibraryScreen extends ConsumerWidget {
                 onOfflineTap: () => OfflineDownloadsScreen.open(context),
               ),
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Connected Storage & Wireless Sync',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => AddSourceModal.show(context),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add_rounded, size: 15, color: Color(0xFF10B981)),
-                          SizedBox(width: 4),
-                          Text(
-                            'Add Source',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF10B981),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              Text('Connected Storage & Wireless Sync',
+                  style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
               _ConnectedStorageSection(
                 usbDevices: library.usbDevices,
@@ -272,7 +193,6 @@ class LibraryScreen extends ConsumerWidget {
                 },
                 onWifiTap: () => WifiTransferModal.show(context),
                 onDriveTap: () => CloudDriveModal.show(context),
-                onAddSource: () => AddSourceModal.show(context),
               ),
             ],
           );
@@ -616,7 +536,6 @@ class _ConnectedStorageSection extends StatelessWidget {
   final VoidCallback onPickLocalFiles;
   final VoidCallback onWifiTap;
   final VoidCallback onDriveTap;
-  final VoidCallback? onAddSource;
 
   const _ConnectedStorageSection({
     required this.usbDevices,
@@ -627,7 +546,6 @@ class _ConnectedStorageSection extends StatelessWidget {
     required this.onPickLocalFiles,
     required this.onWifiTap,
     required this.onDriveTap,
-    this.onAddSource,
   });
 
   @override
@@ -652,10 +570,6 @@ class _ConnectedStorageSection extends StatelessWidget {
         final cardDrive = _GoogleDriveCard(
           onTap: onDriveTap,
         );
-        final cardSource = _MediaServerCard(
-          count: MediaSourceService.instance.sources.length,
-          onAdd: onAddSource ?? () => AddSourceModal.show(context),
-        );
 
         if (isWideRow) {
           return Row(
@@ -668,8 +582,6 @@ class _ConnectedStorageSection extends StatelessWidget {
               Expanded(child: cardWifi),
               const SizedBox(width: 10),
               Expanded(child: cardDrive),
-              const SizedBox(width: 10),
-              Expanded(child: cardSource),
             ],
           );
         }
@@ -693,109 +605,9 @@ class _ConnectedStorageSection extends StatelessWidget {
                 Expanded(child: cardDrive),
               ],
             ),
-            const SizedBox(height: 10),
-            cardSource,
           ],
         );
       },
-    );
-  }
-}
-
-class _MediaServerCard extends StatelessWidget {
-  final int count;
-  final VoidCallback onAdd;
-
-  const _MediaServerCard({
-    required this.count,
-    required this.onAdd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onAdd,
-      borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 110),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: SonicTokens.surfaceHigh,
-          borderRadius: BorderRadius.circular(SonicTokens.radiusXl),
-          border: Border.all(
-            color: count > 0 ? const Color(0xFF10B981) : SonicTokens.glassBorder,
-          ),
-          boxShadow: count > 0
-              ? [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.12), blurRadius: 10)]
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(SonicTokens.radiusMd),
-                  ),
-                  child: const Icon(Icons.dns_rounded,
-                      color: Color(0xFF10B981), size: 18),
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Media Servers',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              count > 0 ? '$count sources connected' : 'M3U, Jellyfin, Emby, Xtream, Plex',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                color: SonicTokens.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: SonicTokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(SonicTokens.radiusSm),
-                border: Border.all(color: SonicTokens.glassBorder),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add_rounded, size: 14, color: Color(0xFF10B981)),
-                  SizedBox(width: 4),
-                  Text(
-                    'Add Source',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF10B981),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
