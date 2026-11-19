@@ -57,6 +57,7 @@ class PlaybackSnapshot {
 
   PlaybackSnapshot copyWith({
     MediaTrack? currentTrack,
+    bool clearCurrentTrack = false,
     List<MediaTrack>? queue,
     List<MediaTrack>? habitSuggestions,
     int? currentIndex,
@@ -80,7 +81,7 @@ class PlaybackSnapshot {
     bool clearBanner = false,
   }) {
     return PlaybackSnapshot(
-      currentTrack: currentTrack ?? this.currentTrack,
+      currentTrack: clearCurrentTrack ? null : (currentTrack ?? this.currentTrack),
       queue: queue ?? this.queue,
       habitSuggestions: habitSuggestions ?? this.habitSuggestions,
       currentIndex: currentIndex ?? this.currentIndex,
@@ -1001,10 +1002,15 @@ class SonicAudioEngine {
     _syncHandlerState();
   }
 
-  Future<void> stop() async {
+  Future<void> stop({bool dismiss = false}) async {
     await _player?.stop();
     await _disableWakeLock();
-    _emit(_snapshot.copyWith(isPlaying: false, isVideoMode: false));
+    _emit(_snapshot.copyWith(
+      isPlaying: false,
+      isVideoMode: false,
+      clearCurrentTrack: dismiss,
+      position: Duration.zero,
+    ));
     _syncHandlerState();
   }
 

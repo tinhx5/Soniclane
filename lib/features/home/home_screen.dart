@@ -27,8 +27,12 @@ class HomeScreen extends ConsumerWidget {
     final library = ref.watch(libraryProvider);
     final clipLink = ref.watch(clipboardBannerProvider);
     final showResume = ref.watch(resumeCardVisibleProvider);
+    final homeVisits = ref.watch(homeVisitCountProvider);
+    final isFirstVisit = homeVisits == 0;
     final showAddSource = ref.watch(homeAddSourceVisibleProvider) &&
+        !MediaSourceService.instance.isHomeAddSourceDismissed &&
         MediaSourceService.instance.sources.isEmpty &&
+        isFirstVisit &&
         (home.listenAgain.isEmpty && home.resumeTrack == null);
 
     final snap = ref.watch(playbackSnapshotProvider).valueOrNull ??
@@ -66,9 +70,10 @@ class HomeScreen extends ConsumerWidget {
               // Onboarding: Quick Add Media Sources when newly downloaded / empty sources
               if (showAddSource) ...[
                 _HomeAddSourceQuickCard(
-                  onDismiss: () => ref
-                      .read(homeAddSourceVisibleProvider.notifier)
-                      .state = false,
+                  onDismiss: () {
+                    MediaSourceService.instance.dismissHomeAddSource();
+                    ref.read(homeAddSourceVisibleProvider.notifier).state = false;
+                  },
                 ),
                 const SizedBox(height: 20),
               ],
@@ -103,7 +108,7 @@ class HomeScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(),
                     ),
                   )
-                else if (filteredRecs.isEmpty && !showAddSource)
+                else if (filteredRecs.isEmpty)
                   _ByoSourceOnboardingCard(
                     hasCustomServer: StreamResolver.instance.hasCustomServer,
                   )
@@ -145,7 +150,7 @@ class HomeScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(),
                     ),
                   )
-                else if (filteredRecs.isEmpty && !showAddSource)
+                else if (filteredRecs.isEmpty)
                   _ByoSourceOnboardingCard(
                     hasCustomServer: StreamResolver.instance.hasCustomServer,
                   )
@@ -1215,53 +1220,50 @@ class _HomeAddSourceQuickCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              ElevatedButton.icon(
-                onPressed: () => AddSourceModal.show(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text(
-                  'Add Source',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                ),
-              ),
               _SourceChip(
                 label: 'M3U Playlist',
                 icon: Icons.list_alt_rounded,
-                onTap: () => AddSourceModal.show(context,
-                    initialSource: MediaSourceType.m3u),
+                onTap: () {
+                  onDismiss();
+                  AddSourceModal.show(context,
+                      initialSource: MediaSourceType.m3u);
+                },
               ),
               _SourceChip(
                 label: 'Jellyfin',
                 icon: Icons.dns_rounded,
-                onTap: () => AddSourceModal.show(context,
-                    initialSource: MediaSourceType.jellyfin),
+                onTap: () {
+                  onDismiss();
+                  AddSourceModal.show(context,
+                      initialSource: MediaSourceType.jellyfin);
+                },
               ),
               _SourceChip(
                 label: 'Emby',
                 icon: Icons.play_circle_fill_rounded,
-                onTap: () => AddSourceModal.show(context,
-                    initialSource: MediaSourceType.emby),
+                onTap: () {
+                  onDismiss();
+                  AddSourceModal.show(context,
+                      initialSource: MediaSourceType.emby);
+                },
               ),
               _SourceChip(
                 label: 'Xtream IPTV',
                 icon: Icons.live_tv_rounded,
-                onTap: () => AddSourceModal.show(context,
-                    initialSource: MediaSourceType.xtream),
+                onTap: () {
+                  onDismiss();
+                  AddSourceModal.show(context,
+                      initialSource: MediaSourceType.xtream);
+                },
               ),
               _SourceChip(
                 label: 'Plex',
                 icon: Icons.movie_rounded,
-                onTap: () => AddSourceModal.show(context,
-                    initialSource: MediaSourceType.plex),
+                onTap: () {
+                  onDismiss();
+                  AddSourceModal.show(context,
+                      initialSource: MediaSourceType.plex);
+                },
               ),
             ],
           ),

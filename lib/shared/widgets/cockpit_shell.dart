@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/media_models.dart';
 import '../../core/providers/sonic_providers.dart';
+import '../../core/services/media_source_service.dart';
 import '../../core/services/sonic_audio_engine.dart';
 import '../../core/theme/sonic_tokens.dart';
 import '../../features/home/home_screen.dart';
@@ -137,6 +138,15 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                 .read(cockpitSplitDetailOpenProvider.notifier)
                                 .state = false;
                             return;
+                          }
+                          if (i == 0) {
+                            ref.read(homeVisitCountProvider.notifier).state++;
+                            if (ref.read(homeVisitCountProvider) > 1) {
+                              MediaSourceService.instance.dismissHomeAddSource();
+                              ref.read(homeAddSourceVisibleProvider.notifier).state = false;
+                            }
+                          } else {
+                            ref.read(homeVisitCountProvider.notifier).state++;
                           }
                           ref.read(activeTabProvider.notifier).state = i;
                           if (i == 5) {
@@ -292,6 +302,13 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                       .state = true,
                                   onOpenFull: () =>
                                       NowPlayingScreen.open(context),
+                                  onClose: () {
+                                    ref
+                                        .read(
+                                            cockpitSplitDetailOpenProvider.notifier)
+                                        .state = false;
+                                    SonicAudioEngine.instance.stop(dismiss: true);
+                                  },
                                 ),
                               ),
                           ],
@@ -330,6 +347,11 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                               activeTab: mobileIdx,
                               onHome: () {
                                 FocusManager.instance.primaryFocus?.unfocus();
+                                ref.read(homeVisitCountProvider.notifier).state++;
+                                if (ref.read(homeVisitCountProvider) > 1) {
+                                  MediaSourceService.instance.dismissHomeAddSource();
+                                  ref.read(homeAddSourceVisibleProvider.notifier).state = false;
+                                }
                                 ref.read(activeTabProvider.notifier).state = 0;
                               },
                               onSearchTap: () {
@@ -680,7 +702,7 @@ class _MobileFloatingMiniPlayer extends StatelessWidget {
                     ),
                     IconButton(
                       tooltip: 'Đóng trình phát',
-                      onPressed: () => SonicAudioEngine.instance.stop(),
+                      onPressed: () => SonicAudioEngine.instance.stop(dismiss: true),
                       icon: const Icon(Icons.close_rounded,
                           size: 20, color: SonicTokens.textSecondary),
                     ),
@@ -705,11 +727,13 @@ class _DockedDesktopMiniPlayer extends StatelessWidget {
   final PlaybackSnapshot snap;
   final VoidCallback onOpenFull;
   final VoidCallback? onOpenSplit;
+  final VoidCallback? onClose;
 
   const _DockedDesktopMiniPlayer({
     required this.snap,
     required this.onOpenFull,
     this.onOpenSplit,
+    this.onClose,
   });
 
   @override
@@ -729,12 +753,12 @@ class _DockedDesktopMiniPlayer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Left: Track Info + Source Badge (Click to open split detail player)
+          // Left: Track Info + Source Badge (Click to open full player)
           InkWell(
-            onTap: onOpenSplit ?? onOpenFull,
+            onTap: onOpenFull,
             borderRadius: BorderRadius.circular(12),
             child: Tooltip(
-              message: 'Mở chi tiết (Split View)',
+              message: 'Mở toàn màn hình (Full Player)',
               child: SizedBox(
                 width: 280,
                 child: Row(
@@ -857,30 +881,11 @@ class _DockedDesktopMiniPlayer extends StatelessWidget {
                   child: const Icon(Icons.skip_next_rounded, size: 28),
                 ),
               ),
-              const SizedBox(width: 14),
-              SizedBox(
-                height: 46,
-                child: Tooltip(
-                  message: 'Expand Full Cockpit Player (F)',
-                  child: OutlinedButton.icon(
-                    onPressed: onOpenFull,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: SonicTokens.glassBorder),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    icon: const Icon(Icons.open_in_full_rounded,
-                        size: 16, color: SonicTokens.secondaryContainer),
-                    label: const Text('Full Player ↗'),
-                  ),
-                ),
-              ),
               const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Đóng trình phát',
-                onPressed: () => SonicAudioEngine.instance.stop(),
+                onPressed: onClose ??
+                    () => SonicAudioEngine.instance.stop(dismiss: true),
                 icon: const Icon(Icons.close_rounded,
                     size: 22, color: SonicTokens.textSecondary),
               ),

@@ -55,63 +55,7 @@ class UserHubScreen extends ConsumerWidget {
                 ),
               ),
 
-              // 2. Driver Profile Card (collapses & scrolls out of view)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: SonicTokens.surfaceCard,
-                      borderRadius:
-                          BorderRadius.circular(SonicTokens.radiusXl),
-                      border: Border.all(
-                        color: SonicTokens.glassBorder,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 22,
-                          backgroundColor: SonicTokens.primaryContainer,
-                          child: Text(
-                            'SL',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Driver Cockpit',
-                                style:
-                                    Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                'Soniclane Cockpit • Free Edition (All Unlocked)',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: SonicTokens.secondaryContainer,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // 3. Sticky Tab Switcher: [ Library | Settings ]
+              // 2. Sticky Tab Switcher: [ Library | Settings ]
               // Pins firmly at top (y = 0, replacing search row) on downscroll!
               SliverPersistentHeader(
                 pinned: true,

@@ -264,7 +264,8 @@ void main() {
         expect(find.text('inv.nadeko.net'), findsNothing);
         expect(find.text('P-GEAR • VIDEO READY'), findsNothing);
         expect(find.byIcon(Icons.person_rounded), findsAtLeastNWidgets(1));
-        expect(find.text('Full Player ↗'), findsOneWidget);
+        expect(find.text('Full Player ↗'), findsNothing);
+        expect(find.text('Cockpit Stream Ready'), findsOneWidget);
 
         // Tap Playlist to verify dedicated Playlist screen
         await tester.tap(find.text('Playlist'));
@@ -311,8 +312,8 @@ void main() {
         await Future.delayed(const Duration(milliseconds: 100));
         await tester.pump();
 
-        // Open Full Player & verify tapping VIDEO switches directly without safety warning modal
-        await tester.tap(find.text('Full Player ↗'));
+        // Open Full Player by tapping track title & verify tapping VIDEO switches directly without safety warning modal
+        await tester.tap(find.text('Cockpit Stream Ready'));
         await tester.pump();
         await Future.delayed(const Duration(milliseconds: 250));
         await tester.pump();

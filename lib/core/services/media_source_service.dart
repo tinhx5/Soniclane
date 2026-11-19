@@ -188,12 +188,25 @@ class MediaSourceService {
     ),
   );
 
+  static const _kHomeAddSourceDismissedKey = 'sl_home_add_source_dismissed';
   List<MediaSourceConfig> _cachedConfigs = [];
+  bool _homeAddSourceDismissed = false;
 
   List<MediaSourceConfig> get sources => List.unmodifiable(_cachedConfigs);
 
+  bool get isHomeAddSourceDismissed =>
+      _homeAddSourceDismissed || _cachedConfigs.isNotEmpty;
+
+  Future<void> dismissHomeAddSource() async {
+    _homeAddSourceDismissed = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kHomeAddSourceDismissedKey, true);
+  }
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
+    _homeAddSourceDismissed =
+        prefs.getBool(_kHomeAddSourceDismissedKey) ?? false;
     final raw = prefs.getString(_kStorageKey);
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -212,6 +225,9 @@ class MediaSourceService {
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(_cachedConfigs.map((e) => e.toJson()).toList());
     await prefs.setString(_kStorageKey, encoded);
+    if (_cachedConfigs.isNotEmpty) {
+      await dismissHomeAddSource();
+    }
   }
 
   Future<void> removeSource(String id) async {
