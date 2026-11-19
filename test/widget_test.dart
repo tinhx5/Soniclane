@@ -239,11 +239,11 @@ void main() {
         expect(find.text('Playlists'), findsOneWidget);
         expect(find.text('Liked Songs'), findsOneWidget);
 
-        // Verify Settings tab inside User Hub includes Cabin Bass EQ & Sleep Timer
+        // Verify Settings tab inside User Hub includes IN-APP BROWSER & CUSTOM MEDIA SOURCE
         await tester.tap(find.text('Settings'));
         await tester.pump();
-        expect(find.text('Cabin Bass & 10-Band Equalizer'), findsOneWidget);
-        expect(find.text('Cockpit Sleep Timer'), findsOneWidget);
+        expect(find.text('IN-APP BROWSER & CUSTOM MEDIA SOURCE'), findsOneWidget);
+        expect(find.text('In-App Web Browser'), findsOneWidget);
         await tester.tap(find.text('Library'));
         await tester.pump();
 
@@ -281,6 +281,8 @@ void main() {
         expect(find.text('IN-APP BROWSER & CUSTOM MEDIA SOURCE'), findsOneWidget);
         expect(find.text('In-App Web Browser'), findsOneWidget);
         expect(find.text('Auto-Select Fastest Server Mirror'), findsOneWidget);
+        expect(find.text('Cabin Bass & 10-Band Equalizer'), findsOneWidget);
+        expect(find.text('Cockpit Sleep Timer'), findsOneWidget);
 
         // Verify Check Connection and Auto-Select Mirror are interactive even with empty input
         await tester.tap(find.text('Check Connection'));

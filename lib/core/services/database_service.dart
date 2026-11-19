@@ -13,6 +13,7 @@ class DatabaseService {
   Database? _db;
   static bool _ffiInitialized = false;
   static String? testDbDirectoryPath;
+  static int _playlistSeq = 0;
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -342,7 +343,7 @@ class DatabaseService {
     List<MediaTrack> initialTracks = const [],
   }) async {
     final db = await database;
-    final id = 'pl_${DateTime.now().millisecondsSinceEpoch}';
+    final id = 'pl_${DateTime.now().millisecondsSinceEpoch}_${++_playlistSeq}';
     final now = DateTime.now();
     await db.insert('playlists', {
       'id': id,

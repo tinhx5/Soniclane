@@ -561,9 +561,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Expanded(
                     child: Column(
                       children: [
-                        sectionAudio,
+                        sectionSource,
                         const SizedBox(height: 16),
-                        sectionSafety,
+                        sectionStorage,
                       ],
                     ),
                   ),
@@ -571,20 +571,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Expanded(
                     child: Column(
                       children: [
-                        sectionSource,
-                        const SizedBox(height: 16),
-                        sectionStorage,
+                        sectionAudio,
                       ],
                     ),
                   ),
                 ],
               )
             else ...[
-              sectionAudio,
-              const SizedBox(height: 16),
               sectionSource,
               const SizedBox(height: 16),
-              sectionSafety,
+              sectionAudio,
               const SizedBox(height: 16),
               sectionStorage,
             ],

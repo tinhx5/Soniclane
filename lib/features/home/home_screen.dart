@@ -103,7 +103,7 @@ class HomeScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(),
                     ),
                   )
-                else if (filteredRecs.isEmpty)
+                else if (filteredRecs.isEmpty && !showAddSource)
                   _ByoSourceOnboardingCard(
                     hasCustomServer: StreamResolver.instance.hasCustomServer,
                   )
@@ -145,7 +145,7 @@ class HomeScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(),
                     ),
                   )
-                else if (filteredRecs.isEmpty)
+                else if (filteredRecs.isEmpty && !showAddSource)
                   _ByoSourceOnboardingCard(
                     hasCustomServer: StreamResolver.instance.hasCustomServer,
                   )
@@ -1079,7 +1079,7 @@ class _ByoSourceOnboardingCard extends ConsumerWidget {
           Text(
             hasCustomServer
                 ? 'Pull down to refresh, search for music, or import local USB & Cloud Drive files.'
-                : 'Soniclane plays your own local / USB MP3 & FLAC files, personal Google Drive audio, Wi-Fi Drop uploads, direct stream URLs, M3U playlists, IPTV servers (Jellyfin/Emby/Xtream/Plex), or your own Custom Media Server.',
+                : 'Soniclane plays your own local / USB MP3 & FLAC files, personal Google Drive audio, Wi-Fi Drop uploads, direct stream URLs, or your own Custom Media Server.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -1087,15 +1087,6 @@ class _ByoSourceOnboardingCard extends ConsumerWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              ElevatedButton.icon(
-                onPressed: () => AddSourceModal.show(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.add_to_queue_rounded, size: 18),
-                label: const Text('Add Source (IPTV / Server)'),
-              ),
               ElevatedButton.icon(
                 onPressed: () {
                   ref.read(userHubSubTabProvider.notifier).state = 0;
