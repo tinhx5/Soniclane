@@ -23,6 +23,9 @@ final homeVisitCountProvider = StateProvider<int>((ref) => 0);
 /// Controls whether the 50/50 split detail player is open in landscape / tablet mode.
 final cockpitSplitDetailOpenProvider = StateProvider<bool>((ref) => false);
 
+/// Controls whether the full player screen is open on mobile devices.
+final mobileFullPlayerOpenProvider = StateProvider<bool>((ref) => false);
+
 /// Controls whether the cockpit video player is expanded in seamless in-place fullscreen mode.
 final cockpitVideoFullscreenProvider = StateProvider<bool>((ref) => false);
 

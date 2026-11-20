@@ -193,53 +193,31 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                     },
                                   ),
                                 Expanded(
-                                  child: isDetailOpen
-                                      ? Row(
-                                          children: [
-                                            // Left Side: Cockpit Detail Player (Video/Audio, Scrubber, Controls)
-                                            Expanded(
-                                              flex: 1,
-                                              child: CockpitDetailPane(
-                                                snap: snap,
-                                                isFullscreen: isVideoFullscreen,
-                                                onToggleFullscreen: () =>
-                                                    ref
-                                                        .read(cockpitVideoFullscreenProvider.notifier)
-                                                        .state = !isVideoFullscreen,
-                                                onClose: () {
-                                                  ref
-                                                      .read(cockpitVideoFullscreenProvider.notifier)
-                                                      .state = false;
-                                                  ref
-                                                      .read(cockpitSplitDetailOpenProvider.notifier)
-                                                      .state = false;
-                                                  if (snap.isVideoMode) {
-                                                    SonicAudioEngine.instance.setVideoMode(false);
-                                                    SonicAudioEngine.instance.play();
-                                                  }
-                                                },
-                                                onOpenFullscreen: () =>
-                                                    ref
-                                                        .read(cockpitVideoFullscreenProvider.notifier)
-                                                        .state = !isVideoFullscreen,
-                                              ),
-                                            ),
-                                            // Right Side: Clean 1-Row Track List (Playlist / Search Results / Smart Recommendations)
-                                            if (!isVideoFullscreen)
-                                              Expanded(
-                                                flex: 1,
-                                                child: Container(
-                                                  decoration: const BoxDecoration(
-                                                    border: Border(
-                                                      left: BorderSide(
-                                                        color: SonicTokens.divider,
-                                                        width: 1,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  child: CockpitSplitTrackList(
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      IndexedStack(
+                                        index: safeDesktopIdx,
+                                        children: pages,
+                                      ),
+                                      Positioned.fill(
+                                        child: Visibility(
+                                          visible: isDetailOpen,
+                                          maintainState: true,
+                                          child: Container(
+                                            color: SonicTokens.surfaceBase,
+                                            child: Row(
+                                              children: [
+                                                // Left Side: Cockpit Detail Player (Video/Audio, Scrubber, Controls)
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: CockpitDetailPane(
                                                     snap: snap,
-                                                    activeTab: safeDesktopIdx,
+                                                    isFullscreen: isVideoFullscreen,
+                                                    onToggleFullscreen: () =>
+                                                        ref
+                                                            .read(cockpitVideoFullscreenProvider.notifier)
+                                                            .state = !isVideoFullscreen,
                                                     onClose: () {
                                                       ref
                                                           .read(cockpitVideoFullscreenProvider.notifier)
@@ -247,20 +225,47 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                                       ref
                                                           .read(cockpitSplitDetailOpenProvider.notifier)
                                                           .state = false;
-                                                      if (snap.isVideoMode) {
-                                                        SonicAudioEngine.instance.setVideoMode(false);
-                                                        SonicAudioEngine.instance.play();
-                                                      }
                                                     },
+                                                    onOpenFullscreen: () =>
+                                                        ref
+                                                            .read(cockpitVideoFullscreenProvider.notifier)
+                                                            .state = !isVideoFullscreen,
                                                   ),
                                                 ),
-                                              ),
-                                          ],
-                                        )
-                                      : IndexedStack(
-                                          index: safeDesktopIdx,
-                                          children: pages,
+                                                // Right Side: Clean 1-Row Track List (Playlist / Search Results / Smart Recommendations)
+                                                if (!isVideoFullscreen)
+                                                  Expanded(
+                                                    flex: 1,
+                                                    child: Container(
+                                                      decoration: const BoxDecoration(
+                                                        border: Border(
+                                                          left: BorderSide(
+                                                            color: SonicTokens.divider,
+                                                            width: 1,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      child: CockpitSplitTrackList(
+                                                        snap: snap,
+                                                        activeTab: safeDesktopIdx,
+                                                        onClose: () {
+                                                          ref
+                                                              .read(cockpitVideoFullscreenProvider.notifier)
+                                                              .state = false;
+                                                          ref
+                                                              .read(cockpitSplitDetailOpenProvider.notifier)
+                                                              .state = false;
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -327,6 +332,8 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
               UserHubScreen(),
             ];
             final mobileIdx = activeTab >= mobilePages.length ? 2 : activeTab;
+            final isMobileFullOpen =
+                ref.watch(mobileFullPlayerOpenProvider) && snap.currentTrack != null;
 
             return Scaffold(
               backgroundColor: SonicTokens.surfaceBase,
@@ -396,19 +403,45 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                 SonicAudioEngine.instance.clearStatusBanner(),
                           ),
                         ),
-                      // Docked Floating Mini-Player replacing Bottom Nav Bar (hidden if no track loaded OR keyboard open OR in User Hub)
+                      // Docked Floating Mini-Player replacing Bottom Nav Bar (hidden if no track loaded OR keyboard open OR in User Hub OR full player open)
                       if (snap.currentTrack != null &&
                           !isKeyboardOpen &&
-                          mobileIdx != 2)
+                          mobileIdx != 2 &&
+                          !isMobileFullOpen)
                         Positioned(
                           left: 12,
                           right: 12,
                           bottom: 12 + MediaQuery.of(context).padding.bottom,
                           child: _MobileFloatingMiniPlayer(
                             snap: snap,
-                            onOpenFull: () => NowPlayingScreen.open(context),
+                            onOpenFull: () => ref
+                                .read(mobileFullPlayerOpenProvider.notifier)
+                                .state = true,
+                            onClose: () {
+                              ref
+                                  .read(mobileFullPlayerOpenProvider.notifier)
+                                  .state = false;
+                              SonicAudioEngine.instance.stop(dismiss: true);
+                            },
                           ),
                         ),
+                      Positioned.fill(
+                        child: Visibility(
+                          visible: isMobileFullOpen,
+                          maintainState: true,
+                          child: PopScope(
+                            canPop: !isMobileFullOpen,
+                            onPopInvokedWithResult: (didPop, result) {
+                              if (!didPop && isMobileFullOpen) {
+                                ref
+                                    .read(mobileFullPlayerOpenProvider.notifier)
+                                    .state = false;
+                              }
+                            },
+                            child: const NowPlayingScreen(),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -599,10 +632,12 @@ class _RailItem extends StatelessWidget {
 class _MobileFloatingMiniPlayer extends StatelessWidget {
   final PlaybackSnapshot snap;
   final VoidCallback onOpenFull;
+  final VoidCallback? onClose;
 
   const _MobileFloatingMiniPlayer({
     required this.snap,
     required this.onOpenFull,
+    this.onClose,
   });
 
   @override
@@ -702,7 +737,13 @@ class _MobileFloatingMiniPlayer extends StatelessWidget {
                     ),
                     IconButton(
                       tooltip: 'Đóng trình phát',
-                      onPressed: () => SonicAudioEngine.instance.stop(dismiss: true),
+                      onPressed: () {
+                        if (onClose != null) {
+                          onClose!();
+                        } else {
+                          SonicAudioEngine.instance.stop(dismiss: true);
+                        }
+                      },
                       icon: const Icon(Icons.close_rounded,
                           size: 20, color: SonicTokens.textSecondary),
                     ),

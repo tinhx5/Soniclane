@@ -772,11 +772,12 @@ class SonicAudioEngine {
 
     final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
     final isCustomOnline = playableTrack.source == TrackSource.customStream;
-    final effectiveVideoMode = _snapshot.isVideoMode &&
+    final effectiveVideoMode = targetVideoMode &&
         (isMobile ||
             !(isCustomOnline &&
                 (playableTrack.videoStreamUrl == null ||
                     playableTrack.videoStreamUrl!.isEmpty)));
+    _preferredVideoMode = effectiveVideoMode;
     _emit(
       _snapshot.copyWith(
         currentTrack: playableTrack,

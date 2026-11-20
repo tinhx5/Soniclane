@@ -33,6 +33,16 @@ class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
 
   static Future<void> open(BuildContext context) {
+    try {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final isDesktopOrTablet =
+          MediaQuery.sizeOf(context).shortestSide >= 600 ||
+              MediaQuery.sizeOf(context).width >= 700;
+      if (!isDesktopOrTablet) {
+        container.read(mobileFullPlayerOpenProvider.notifier).state = true;
+        return Future.value();
+      }
+    } catch (_) {}
     return Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -63,16 +73,21 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     });
   }
 
+  void _minimize() {
+    try {
+      ref.read(mobileFullPlayerOpenProvider.notifier).state = false;
+    } catch (_) {}
+    try {
+      ref.read(cockpitSplitDetailOpenProvider.notifier).state = false;
+    } catch (_) {}
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   @override
   void dispose() {
     _fullscreenHudTimer?.cancel();
-    final snap = SonicAudioEngine.instance.snapshot;
-    if (snap.isVideoMode) {
-      // User minimized from full player: seamlessly switch to Audio Mode
-      // so music keeps playing down below in the mini-player without interruption!
-      SonicAudioEngine.instance.setVideoMode(false);
-      SonicAudioEngine.instance.play();
-    }
     super.dispose();
   }
 
@@ -147,9 +162,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             });
             return;
           }
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).pop();
-          }
+          _minimize();
         },
       },
       child: Focus(
@@ -460,13 +473,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       CockpitTouchButton(
-                        onTap: () {
-                          if (snap.isVideoMode) {
-                            SonicAudioEngine.instance.setVideoMode(false);
-                            SonicAudioEngine.instance.play();
-                          }
-                          Navigator.of(context).pop();
-                        },
+                        onTap: _minimize,
                         backgroundColor: SonicTokens.surfaceCard,
                         borderRadius: BorderRadius.circular(999),
                         child: const Icon(Icons.keyboard_arrow_down_rounded,
@@ -612,13 +619,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           child: Row(
             children: [
               CockpitTouchButton(
-                onTap: () {
-                  if (snap.isVideoMode) {
-                    SonicAudioEngine.instance.setVideoMode(false);
-                    SonicAudioEngine.instance.play();
-                  }
-                  Navigator.of(context).pop();
-                },
+                onTap: _minimize,
                 backgroundColor: SonicTokens.surfaceContainer,
                 child: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
               ),
@@ -1518,8 +1519,6 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     try {
       WakelockPlus.enable();
     } catch (_) {}
-    // Pause background audio engine so Web Video plays clearly without echo
-    SonicAudioEngine.instance.pause();
     _initController();
     Future.delayed(const Duration(milliseconds: 3500), () {
       if (mounted && !_isReady) {
@@ -1611,10 +1610,10 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
           if (!el) {
             el = document.createElement('style');
             el.id = 'sl-clean-style';
+            el.textContent = css;
             var target = document.head || document.documentElement || document.body;
             if (target) target.appendChild(el);
           }
-          if (el) el.textContent = css;
         }
 
         applyStyle();
@@ -1632,7 +1631,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
               if (skip) skip.click();
 
               var video = document.querySelector('video');
-              var ad = document.querySelector('.ad-showing, .ad-interrupting, .ytp-ad-player-overlay');
+              var ad = document.querySelector('.ad-showing, .ad-interrupting');
               if (video && ad && isFinite(video.duration) && video.duration > 0 && video.duration < 86400 && video.currentTime < video.duration) {
                 video.currentTime = video.duration;
               }
@@ -1642,29 +1641,16 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 unmuteBtn.click();
               }
 
-              // Auto-sync live stream edge & auto-retry on network error
-              var liveBadge = document.querySelector('.ytp-live-badge:not(.ytp-live-badge-live), button.ytp-live-badge[disabled]');
-              if (liveBadge && video && (video.paused || video.readyState < 2)) {
-                liveBadge.click();
-              }
-
-              var retryBtn = document.querySelector('.player-error-message button, .ytp-error button, button[aria-label*="Retry" i], button[aria-label*="Thử lại" i]');
-              if (retryBtn) retryBtn.click();
-
               if (video) {
-                if (video.error) {
-                  video.load();
-                  video.play().catch(function(){});
-                } else if (video.paused) {
+                if (video.muted) {
+                  video.muted = false;
+                }
+                video.volume = 1.0;
+                if (video.paused) {
                   video.play().catch(function() {
                     video.muted = true;
                     video.play().catch(function(){});
                   });
-                } else {
-                  if (video.muted) {
-                    video.muted = false;
-                  }
-                  video.volume = 1.0;
                 }
               }
 
