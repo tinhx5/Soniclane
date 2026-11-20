@@ -58,7 +58,6 @@ class NowPlayingScreen extends ConsumerStatefulWidget {
 class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   int _rightQueueTab = 0; // 0: PLAYLIST, 1: HABIT AI
   bool _isFullscreenOpen = false;
-  bool _userDismissedFullscreenInLandscape = false;
   bool _showFullscreenControls = true;
   Timer? _fullscreenHudTimer;
   final GlobalKey _stageKey = GlobalKey();
@@ -134,22 +133,11 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         SonicAudioEngine.instance.snapshot;
     final settings = ref.watch(settingsProvider);
     final track = snap.currentTrack;
-
-    final orientation = MediaQuery.orientationOf(context);
-    final isLandscape = orientation == Orientation.landscape;
     final isMobilePhone = MediaQuery.sizeOf(context).shortestSide < 600;
 
-    if (orientation == Orientation.portrait) {
-      _userDismissedFullscreenInLandscape = false;
-    }
-
-    // Automatically expand to fullscreen video in landscape orientation, or when user taps fullscreen!
-    final showFullscreenVideo = snap.isVideoMode &&
-        track != null &&
-        (_isFullscreenOpen ||
-            (isMobilePhone &&
-                isLandscape &&
-                !_userDismissedFullscreenInLandscape));
+    // Fullscreen video is strictly manual: only active when user explicitly taps fullscreen!
+    final showFullscreenVideo =
+        snap.isVideoMode && track != null && _isFullscreenOpen;
 
     return CallbackShortcuts(
       bindings: {
@@ -169,7 +157,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           if (showFullscreenVideo) {
             setState(() {
               _isFullscreenOpen = false;
-              _userDismissedFullscreenInLandscape = true;
             });
             return;
           }
@@ -221,7 +208,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   onExit: () {
                     setState(() {
                       _isFullscreenOpen = false;
-                      _userDismissedFullscreenInLandscape = true;
                     });
                   },
                 ),
@@ -276,7 +262,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                               () {
                                 setState(() {
                                   _isFullscreenOpen = false;
-                                  _userDismissedFullscreenInLandscape = true;
                                 });
                               },
                           borderRadius: BorderRadius.circular(999),
@@ -540,13 +525,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   isFullscreen: isFullscreen,
                   onToggleFullscreen: () {
                     setState(() {
-                      if (isFullscreen) {
-                        _isFullscreenOpen = false;
-                        _userDismissedFullscreenInLandscape = true;
-                      } else {
-                        _isFullscreenOpen = true;
-                        _userDismissedFullscreenInLandscape = false;
-                      }
+                      _isFullscreenOpen = !isFullscreen;
                     });
                   },
                 ),
@@ -614,7 +593,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             onToggleFullscreen: () {
               setState(() {
                 _isFullscreenOpen = false;
-                _userDismissedFullscreenInLandscape = true;
               });
             },
           ),
@@ -645,7 +623,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   onTap: () {
                     setState(() {
                       _isFullscreenOpen = true;
-                      _userDismissedFullscreenInLandscape = false;
                     });
                   },
                   backgroundColor: SonicTokens.surfaceElevated,
@@ -718,7 +695,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                           onToggleFullscreen: () {
                             setState(() {
                               _isFullscreenOpen = true;
-                              _userDismissedFullscreenInLandscape = false;
                             });
                           },
                         ),
@@ -1542,6 +1518,8 @@ class WebVideoManager {
 
     _activeVideoId = videoId;
     _isReady = false;
+    _controller?.runJavaScript(
+        "try { window._slStarted = false; } catch(e){}");
 
     late final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
@@ -1608,56 +1586,79 @@ class WebVideoManager {
 
         applyStyle();
 
+        // 1. Permanently lock out native iOS / WebKit / Android fullscreen takeover
+        try {
+          if (!window._slFsPrevented) {
+            window._slFsPrevented = true;
+            HTMLVideoElement.prototype.webkitEnterFullscreen = function() { return false; };
+            HTMLVideoElement.prototype.webkitRequestFullscreen = function() { return false; };
+            HTMLVideoElement.prototype.requestFullscreen = function() { return false; };
+          }
+        } catch(e) {}
+
+        function ensureInline(v) {
+          if (!v) return;
+          try {
+            if (!v.hasAttribute('playsinline')) v.setAttribute('playsinline', '');
+            if (!v.hasAttribute('webkit-playsinline')) v.setAttribute('webkit-playsinline', '');
+            if (!v.hasAttribute('x5-playsinline')) v.setAttribute('x5-playsinline', '');
+            v.playsInline = true;
+          } catch(e) {}
+        }
+
+        var initV = document.querySelector('video');
+        if (initV) ensureInline(initV);
+
         if (!window._slLoop) {
           window._slLoop = setInterval(function() {
             try {
               applyStyle();
 
               // Auto-dismiss consent, upsell, and inactivity / "Still watching?" prompts
-              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button, yt-confirm-dialog-renderer button, #confirm-button button, .ytp-pause-overlay button, button[aria-label*="Continue" i], button[aria-label*="Tiếp tục" i], button[aria-label*="Yes" i], button[aria-label*="Có" i]');
+              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button, yt-confirm-dialog-renderer button, #confirm-button button, button[aria-label*="Continue" i], button[aria-label*="Tiếp tục" i], button[aria-label*="Yes" i], button[aria-label*="Có" i]');
               popups.forEach(function(p) { p.click(); });
 
+              // Cleanly click skip ad button without modifying video.currentTime
               var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
               if (skip) skip.click();
-
-              var video = document.querySelector('video');
-              var ad = document.querySelector('.ad-showing, .ad-interrupting');
-              if (video && ad && isFinite(video.duration) && video.duration > 0 && video.duration < 86400 && video.currentTime < video.duration) {
-                video.currentTime = video.duration;
-              }
 
               var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="bật tiếng" i]');
               if (unmuteBtn && unmuteBtn.offsetParent !== null) {
                 unmuteBtn.click();
               }
 
+              var video = document.querySelector('video');
               if (video) {
+                ensureInline(video);
                 if (video.muted) {
                   video.muted = false;
                 }
                 video.volume = 1.0;
-                if (video.paused) {
-                  video.play().catch(function() {
+                // Auto-play once on track load. Do NOT loop play() if user paused or video is buffering.
+                if (!window._slStarted && video.paused) {
+                  video.play().then(function() {
+                    window._slStarted = true;
+                  }).catch(function() {
                     video.muted = true;
-                    video.play().catch(function(){});
+                    video.play().then(function() {
+                      window._slStarted = true;
+                    }).catch(function(){});
                   });
                 }
               }
-
-              var playBtn = document.querySelector('.ytp-large-play-button, button[aria-label*="Play" i], button[aria-label*="Phát" i]');
-              if (playBtn && playBtn.offsetParent !== null) {
-                playBtn.click();
-              }
             } catch (e) {}
-          }, 350);
+          }, 1000);
 
           ['click', 'touchstart', 'pointerdown'].forEach(function(evt) {
             document.addEventListener(evt, function() {
               var v = document.querySelector('video');
               if (v) {
+                ensureInline(v);
                 v.muted = false;
                 v.volume = 1.0;
-                if (v.paused) v.play().catch(function(){});
+                if (!window._slStarted && v.paused) {
+                  v.play().then(function() { window._slStarted = true; }).catch(function(){});
+                }
               }
             }, { passive: true });
           });
@@ -1672,7 +1673,7 @@ class WebVideoManager {
   void release() {
     try {
       _controller?.runJavaScript(
-          "try { if (window._slLoop) clearInterval(window._slLoop); document.querySelector('video')?.pause(); } catch(e){}");
+          "try { if (window._slLoop) clearInterval(window._slLoop); window._slLoop = null; window._slStarted = false; document.querySelector('video')?.pause(); } catch(e){}");
       _controller?.loadRequest(Uri.parse('about:blank'));
     } catch (_) {}
     _controller = null;
