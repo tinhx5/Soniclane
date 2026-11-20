@@ -728,11 +728,11 @@ class SonicAudioEngine {
         } else {
           final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
           final isOnlineCustom = track.source == TrackSource.customStream;
-          if (isMobile && isOnlineCustom) {
+          if (targetVideoMode && isMobile && isOnlineCustom) {
             debugPrint(
                 '[AudioEngine] Piped resolution failed, playing online stream via Web Player on mobile.');
             playableTrack = track;
-            tierLabel = targetVideoMode ? 'Direct Web Video' : 'Direct Web Audio';
+            tierLabel = 'Direct Web Video';
           } else {
             // If inside a queue/playlist and there are more tracks, auto-skip broken items
             if (queue != null && _snapshot.currentIndex < queue.length - 1) {
@@ -794,9 +794,9 @@ class SonicAudioEngine {
       Duration(seconds: playableTrack.durationSeconds),
     );
 
-    // On mobile/in-car Android, when playing online stream, Web Player handles both video and audio.
+    // On mobile/in-car Android, when playing online video, Web Player handles both video and audio.
     // Pause background native audio to prevent duplicate sound and dismiss buffering spinner.
-    if (isMobile && isCustomOnline) {
+    if (effectiveVideoMode && isMobile && isCustomOnline) {
       await _player?.pause();
       _emit(_snapshot.copyWith(
         isBuffering: false,
@@ -1014,36 +1014,10 @@ class SonicAudioEngine {
     _syncHandlerState();
   }
 
-  /// Optional callback to notify web-based player of user seeks.
-  void Function(Duration pos)? onWebSeek;
-
-  /// Syncs position, duration, and playing state reported by the web stream player.
-  void syncWebProgress({
-    required Duration position,
-    required Duration duration,
-    required bool isPaused,
-  }) {
-    final track = _snapshot.currentTrack;
-    if (track != null && track.source == TrackSource.customStream) {
-      final updatedTrack =
-          duration > Duration.zero && track.durationSeconds <= 0
-              ? track.copyWith(durationSeconds: duration.inSeconds)
-              : track;
-      _emit(_snapshot.copyWith(
-        currentTrack: updatedTrack,
-        position: position,
-        duration: duration > Duration.zero ? duration : _snapshot.duration,
-        isPlaying: !isPaused,
-        isBuffering: false,
-      ));
-    }
-  }
-
   Future<void> seekTo(Duration position) async {
     await _player?.seek(position);
     _emit(_snapshot.copyWith(position: position));
     _syncHandlerState();
-    onWebSeek?.call(position);
   }
 
   Future<void> seekRelative(Duration delta) async {
@@ -1248,27 +1222,37 @@ class SonicAudioEngine {
     var track = _snapshot.currentTrack;
     final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
-    if (track != null && track.source == TrackSource.customStream && isMobile) {
-      // On mobile devices, online stream is rendered via Web Player (Cốc Cốc-style).
-      // Keep native background audio player paused.
-      await _player?.pause();
-      _emit(_snapshot.copyWith(
-        isVideoMode: enableVideo,
-        isPlaying: true,
-        isBuffering: false,
-        statusBanner: null,
-      ));
-      return;
-    }
-
     if (!enableVideo) {
       _emit(_snapshot.copyWith(
         isVideoMode: false,
         isBuffering: false,
       ));
-      await _player?.play();
+      if (track != null) {
+        if (_player == null ||
+            _player?.state.duration == Duration.zero ||
+            _player?.state.completed == true) {
+          await playTrack(track,
+              keepVideoMode: false,
+              resumeAt: _snapshot.position);
+        } else {
+          await _player?.play();
+        }
+      }
       _emit(_snapshot.copyWith(
         isPlaying: true,
+      ));
+      return;
+    }
+
+    if (track != null && track.source == TrackSource.customStream && isMobile) {
+      // On mobile devices, online video is rendered instantly via Web Player (Cốc Cốc-style).
+      // Pause native background audio player to prevent audio collision.
+      await _player?.pause();
+      _emit(_snapshot.copyWith(
+        isVideoMode: true,
+        isPlaying: true,
+        isBuffering: false,
+        statusBanner: null,
       ));
       return;
     }

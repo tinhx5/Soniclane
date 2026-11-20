@@ -28,7 +28,23 @@ enum _ProbeStatus { playable, rejected, timeout }
 /// 2. User-configured JSON Media API v1 servers (/api/v1/...)
 /// 3. User-configured JSON Stream Index API servers (/search, /streams, /trending, /playlists)
 class StreamResolver {
-  StreamResolver._();
+  StreamResolver._() {
+    if (!testOfflineMode) {
+      _configuredServers = const [
+        ServerInstance(
+          url: 'https://yt.chocolatemoo53.com',
+          name: 'yt.chocolatemoo53.com',
+          tier: 'Default Server',
+        ),
+        ServerInstance(
+          url: 'https://api.piped.private.coffee',
+          name: 'api.piped.private.coffee',
+          tier: 'Default Server',
+        ),
+      ];
+      _measuredInstances = List<ServerInstance>.from(_configuredServers);
+    }
+  }
   static final StreamResolver instance = StreamResolver._();
 
   static const String kStreamUserAgent =
@@ -251,11 +267,18 @@ class StreamResolver {
     final userEntries = parseServerEntries(raw);
     final defaultEntries = parseServerEntries(defaultRaw);
     final merged = mergeServerLists(userEntries, defaultEntries);
-    final parsed = merged
+    var finalEntries = merged;
+    if (finalEntries.isEmpty && !testOfflineMode) {
+      finalEntries = const [
+        'https://yt.chocolatemoo53.com',
+        'https://api.piped.private.coffee',
+      ];
+    }
+    final parsed = finalEntries
         .map((url) => ServerInstance(
               url: url,
               name: Uri.parse(url).host,
-              tier: 'Custom Server',
+              tier: userEntries.contains(url) ? 'Custom Server' : 'Default Server',
             ))
         .toList();
 

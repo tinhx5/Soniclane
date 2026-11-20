@@ -66,6 +66,13 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   @override
   void dispose() {
     _fullscreenHudTimer?.cancel();
+    final snap = SonicAudioEngine.instance.snapshot;
+    if (snap.isVideoMode) {
+      // User minimized from full player: seamlessly switch to Audio Mode
+      // so music keeps playing down below in the mini-player without interruption!
+      SonicAudioEngine.instance.setVideoMode(false);
+      SonicAudioEngine.instance.play();
+    }
     super.dispose();
   }
 
@@ -104,17 +111,19 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
 
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
+    final isMobilePhone = MediaQuery.sizeOf(context).shortestSide < 600;
 
     if (orientation == Orientation.portrait) {
       _userDismissedFullscreenInLandscape = false;
     }
 
-    // Only automatically go fullscreen when device is rotated horizontally (landscape)!
-    // In portrait, video is embedded directly in the player view.
+    // Automatically expand to fullscreen video in landscape orientation, or when user taps fullscreen!
     final showFullscreenVideo = snap.isVideoMode &&
         track != null &&
-        isLandscape &&
-        !_userDismissedFullscreenInLandscape;
+        (_isFullscreenOpen ||
+            (isMobilePhone &&
+                isLandscape &&
+                !_userDismissedFullscreenInLandscape));
 
     return CallbackShortcuts(
       bindings: {
@@ -131,6 +140,13 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           }
         },
         const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (showFullscreenVideo) {
+            setState(() {
+              _isFullscreenOpen = false;
+              _userDismissedFullscreenInLandscape = true;
+            });
+            return;
+          }
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
@@ -141,49 +157,52 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         child: Scaffold(
           backgroundColor:
               showFullscreenVideo ? Colors.black : SonicTokens.surfaceBase,
-          body: showFullscreenVideo
-              ? Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _MediaStageBox(
-                      key: _stageKey,
-                      track: track,
-                      isVideoMode: true,
-                      isPlaying: snap.isPlaying,
-                      position: snap.position,
-                      aspectRatio: MediaQuery.sizeOf(context).aspectRatio,
-                      cleanMobileStage: true,
-                      isFullscreen: true,
-                      onToggleFullscreen: () {
-                        setState(() => _userDismissedFullscreenInLandscape = true);
-                      },
-                    ),
-                    _buildFullscreenVideoControls(context, snap, track),
-                  ],
-                )
-              : SafeArea(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth >= 900;
-                      if (isWide) {
-                        return _buildWidescreenCockpit(
-                          context,
-                          snap,
-                          settings,
-                          track,
-                          stageKey: _stageKey,
-                        );
-                      }
-                      return _buildMobilePlayer(
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              SafeArea(
+                top: !showFullscreenVideo,
+                bottom: !showFullscreenVideo,
+                left: !showFullscreenVideo,
+                right: !showFullscreenVideo,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 900;
+                    if (isWide) {
+                      return _buildWidescreenCockpit(
                         context,
                         snap,
                         settings,
                         track,
+                        isFullscreen: showFullscreenVideo,
                         stageKey: _stageKey,
                       );
-                    },
-                  ),
+                    }
+                    return _buildMobilePlayer(
+                      context,
+                      snap,
+                      settings,
+                      track,
+                      isFullscreen: showFullscreenVideo,
+                      stageKey: _stageKey,
+                    );
+                  },
                 ),
+              ),
+              if (showFullscreenVideo)
+                _buildFullscreenVideoControls(
+                  context,
+                  snap,
+                  track,
+                  onExit: () {
+                    setState(() {
+                      _isFullscreenOpen = false;
+                      _userDismissedFullscreenInLandscape = true;
+                    });
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -192,8 +211,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   Widget _buildFullscreenVideoControls(
     BuildContext context,
     PlaybackSnapshot snap,
-    MediaTrack? track,
-  ) {
+    MediaTrack? track, {
+    VoidCallback? onExit,
+  }) {
     return AnimatedOpacity(
       opacity: _showFullscreenControls ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 250),
@@ -228,11 +248,13 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     child: Row(
                       children: [
                         InkWell(
-                          onTap: () {
-                            setState(() {
-                              _userDismissedFullscreenInLandscape = true;
-                            });
-                          },
+                          onTap: onExit ??
+                              () {
+                                setState(() {
+                                  _isFullscreenOpen = false;
+                                  _userDismissedFullscreenInLandscape = true;
+                                });
+                              },
                           borderRadius: BorderRadius.circular(999),
                           child: Container(
                             padding: const EdgeInsets.all(8),
@@ -420,123 +442,131 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     PlaybackSnapshot snap,
     AppSettings settings,
     MediaTrack? track, {
+    bool isFullscreen = false,
     Key? stageKey,
   }) {
     return Column(
       children: [
         // Top Header: Thu nhỏ | [ Audio | Video ] | User
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CockpitTouchButton(
-                onTap: () {
-                  if (snap.isVideoMode) {
-                    SonicAudioEngine.instance.setVideoMode(false);
-                    SonicAudioEngine.instance.play();
-                  }
-                  Navigator.of(context).pop();
-                },
-                backgroundColor: SonicTokens.surfaceCard,
-                borderRadius: BorderRadius.circular(999),
-                child: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
-              ),
-              _AudioVideoTogglePill(
-                isVideo: snap.isVideoMode,
-                onChanged: (v) => _onToggleVideoMode(v, snap),
-              ),
-              InkWell(
-                onTap: () {
-                  ref.read(activeTabProvider.notifier).state = 2;
-                  Navigator.of(context).pop();
-                },
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: SonicTokens.primaryContainer,
-                  ),
-                  child: const Icon(Icons.person_rounded,
-                      color: SonicTokens.onPrimaryContainer, size: 22),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, inner) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: math.max(0, inner.maxHeight - 26),
-                  ),
-                  child: Column(
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: isFullscreen ? 0 : 56,
+          child: isFullscreen
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _MediaStageBox(
-                            key: stageKey,
-                            track: track,
-                            isVideoMode: snap.isVideoMode,
-                            isPlaying: snap.isPlaying,
-                            position: snap.position,
-                            aspectRatio: 16 / 9,
-                            cleanMobileStage: true,
-                            onToggleFullscreen: () {
-                              SystemChrome.setPreferredOrientations([
-                                DeviceOrientation.landscapeLeft,
-                                DeviceOrientation.landscapeRight,
-                              ]);
-                              Future.delayed(const Duration(milliseconds: 1500), () {
-                                SystemChrome.setPreferredOrientations([
-                                  DeviceOrientation.portraitUp,
-                                  DeviceOrientation.landscapeLeft,
-                                  DeviceOrientation.landscapeRight,
-                                ]);
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 18),
-                          _CleanMobileTitleBlock(track: track),
-                          const SizedBox(height: 14),
-                          if (track != null)
-                            _MobileActionStrip(
-                              track: track,
-                              snap: snap,
-                            ),
-                          if (track != null) _ActivePlaylistRow(snap: snap),
-                        ],
+                      CockpitTouchButton(
+                        onTap: () {
+                          if (snap.isVideoMode) {
+                            SonicAudioEngine.instance.setVideoMode(false);
+                            SonicAudioEngine.instance.play();
+                          }
+                          Navigator.of(context).pop();
+                        },
+                        backgroundColor: SonicTokens.surfaceCard,
+                        borderRadius: BorderRadius.circular(999),
+                        child: const Icon(Icons.keyboard_arrow_down_rounded,
+                            size: 30),
                       ),
-                      const SizedBox(height: 18),
-                      Column(
-                        children: [
-                          _CockpitScrubber(
-                            position: snap.position,
-                            duration: snap.duration,
+                      _AudioVideoTogglePill(
+                        isVideo: snap.isVideoMode,
+                        onChanged: (v) => _onToggleVideoMode(v, snap),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          ref.read(activeTabProvider.notifier).state = 2;
+                          Navigator.of(context).pop();
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: SonicTokens.primaryContainer,
                           ),
-                          const SizedBox(height: 16),
-                          _TransportCluster(
-                            snap: snap,
-                            centerPlaySize: SonicTokens.mobilePlaySize,
-                            includeShuffleRepeat: false,
-                          ),
-                          const SizedBox(height: 8),
-                        ],
+                          child: const Icon(Icons.person_rounded,
+                              color: SonicTokens.onPrimaryContainer, size: 22),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
+        ),
+        // Stage Box (Video or Artwork) - ALWAYS in this exact Expanded slot!
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isFullscreen ? 0 : 16,
+              vertical: isFullscreen ? 0 : 4,
+            ),
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: isFullscreen
+                    ? MediaQuery.sizeOf(context).aspectRatio
+                    : 16 / 9,
+                child: _MediaStageBox(
+                  key: stageKey,
+                  track: track,
+                  isVideoMode: snap.isVideoMode,
+                  isPlaying: snap.isPlaying,
+                  position: snap.position,
+                  aspectRatio: isFullscreen
+                      ? MediaQuery.sizeOf(context).aspectRatio
+                      : 16 / 9,
+                  cleanMobileStage: true,
+                  isFullscreen: isFullscreen,
+                  onToggleFullscreen: () {
+                    setState(() {
+                      if (isFullscreen) {
+                        _isFullscreenOpen = false;
+                        _userDismissedFullscreenInLandscape = true;
+                      } else {
+                        _isFullscreenOpen = true;
+                        _userDismissedFullscreenInLandscape = false;
+                      }
+                    });
+                  },
+                ),
+              ),
+            ),
           ),
+        ),
+        // Bottom Controls (Title, Scrubber, Transport) - hidden when isFullscreen
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: isFullscreen ? 0 : null,
+          child: isFullscreen
+              ? const SizedBox.shrink()
+              : SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _CleanMobileTitleBlock(track: track),
+                      const SizedBox(height: 8),
+                      if (track != null)
+                        _MobileActionStrip(track: track, snap: snap),
+                      if (track != null) _ActivePlaylistRow(snap: snap),
+                      const SizedBox(height: 10),
+                      _CockpitScrubber(
+                        position: snap.position,
+                        duration: snap.duration,
+                      ),
+                      const SizedBox(height: 12),
+                      _TransportCluster(
+                        snap: snap,
+                        centerPlaySize: SonicTokens.mobilePlaySize,
+                        includeShuffleRepeat: false,
+                      ),
+                    ],
+                  ),
+                ),
         ),
       ],
     );
@@ -547,8 +577,33 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     PlaybackSnapshot snap,
     AppSettings settings,
     MediaTrack? track, {
+    bool isFullscreen = false,
     Key? stageKey,
   }) {
+    if (isFullscreen) {
+      return Center(
+        child: AspectRatio(
+          aspectRatio: MediaQuery.sizeOf(context).aspectRatio,
+          child: _MediaStageBox(
+            key: stageKey,
+            track: track,
+            isVideoMode: snap.isVideoMode,
+            isPlaying: snap.isPlaying,
+            position: snap.position,
+            aspectRatio: MediaQuery.sizeOf(context).aspectRatio,
+            cleanMobileStage: false,
+            isFullscreen: true,
+            onToggleFullscreen: () {
+              setState(() {
+                _isFullscreenOpen = false;
+                _userDismissedFullscreenInLandscape = true;
+              });
+            },
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
         // Top HUD Meta Bar
@@ -557,7 +612,13 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           child: Row(
             children: [
               CockpitTouchButton(
-                onTap: () => Navigator.of(context).pop(),
+                onTap: () {
+                  if (snap.isVideoMode) {
+                    SonicAudioEngine.instance.setVideoMode(false);
+                    SonicAudioEngine.instance.play();
+                  }
+                  Navigator.of(context).pop();
+                },
                 backgroundColor: SonicTokens.surfaceContainer,
                 child: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
               ),
@@ -566,14 +627,15 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 isVideo: snap.isVideoMode,
                 onChanged: (v) => _onToggleVideoMode(v, snap),
               ),
-              if (snap.isVideoMode &&
-                  SonicAudioEngine.instance.videoController != null) ...[
+              if (snap.isVideoMode) ...[
                 const SizedBox(width: 14),
                 CockpitTouchButton(
-                  onTap: () => _FullscreenVideoPage.open(
-                    context,
-                    SonicAudioEngine.instance.videoController!,
-                  ),
+                  onTap: () {
+                    setState(() {
+                      _isFullscreenOpen = true;
+                      _userDismissedFullscreenInLandscape = false;
+                    });
+                  },
                   backgroundColor: SonicTokens.surfaceElevated,
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -642,16 +704,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                           aspectRatio: 16 / 9,
                           cleanMobileStage: false,
                           onToggleFullscreen: () {
-                            SystemChrome.setPreferredOrientations([
-                              DeviceOrientation.landscapeLeft,
-                              DeviceOrientation.landscapeRight,
-                            ]);
-                            Future.delayed(const Duration(milliseconds: 1500), () {
-                              SystemChrome.setPreferredOrientations([
-                                DeviceOrientation.portraitUp,
-                                DeviceOrientation.landscapeLeft,
-                                DeviceOrientation.landscapeRight,
-                              ]);
+                            setState(() {
+                              _isFullscreenOpen = true;
+                              _userDismissedFullscreenInLandscape = false;
                             });
                           },
                         ),
@@ -763,23 +818,241 @@ class CockpitDetailPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final track = snap.currentTrack;
+    final isVideo = snap.isVideoMode;
+    final showFull = isFullscreen && isVideo;
 
-    if (isFullscreen && snap.isVideoMode) {
-      return Container(
-        color: Colors.black,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _MediaStageBox(
-              track: track,
-              isVideoMode: snap.isVideoMode,
-              isPlaying: snap.isPlaying,
-              position: snap.position,
-              aspectRatio: MediaQuery.sizeOf(context).aspectRatio,
-              cleanMobileStage: true,
-              isFullscreen: true,
-              onToggleFullscreen: onToggleFullscreen ?? onOpenFullscreen,
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: showFull ? Colors.black : SonicTokens.surfaceBase,
+        border: showFull
+            ? null
+            : const Border(
+                right: BorderSide(color: SonicTokens.divider, width: 1)),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Column(
+            children: [
+              // Top Bar: [ ĐANG PHÁT ]  [ AUDIO | VIDEO ]  [ Phóng to ]  [ Thu nhỏ X ]
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: showFull ? 0 : 42,
+                child: showFull
+                    ? const SizedBox.shrink()
+                    : Container(
+                        height: 42,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: SonicTokens.surfaceLowest.withOpacity(0.92),
+                          border: const Border(
+                            bottom:
+                                BorderSide(color: SonicTokens.divider, width: 1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.play_circle_fill_rounded,
+                              size: 16,
+                              color: SonicTokens.secondaryContainer,
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'ĐANG PHÁT',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: SonicTokens.secondaryLight,
+                              ),
+                            ),
+                            const Spacer(),
+                            _AudioVideoTogglePill(
+                              isVideo: snap.isVideoMode,
+                              onChanged: (wantVideo) async {
+                                if (wantVideo) {
+                                  final settings = ref.read(settingsProvider);
+                                  final motion =
+                                      ref.read(vehicleMotionProvider).valueOrNull;
+                                  if (settings.drivingVideoLockout &&
+                                      motion != null &&
+                                      motion.isMovingOverThreshold) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        backgroundColor: SonicTokens.warningAmber,
+                                        content: Text(
+                                          'Driving Lockout: Video disabled while vehicle is moving.',
+                                          style: TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                }
+                                await SonicAudioEngine.instance
+                                    .setVideoMode(wantVideo);
+                                if (!wantVideo) {
+                                  await SonicAudioEngine.instance.play();
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              tooltip: 'Phóng to toàn màn hình',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 32, minHeight: 32),
+                              icon: const Icon(
+                                Icons.fullscreen_rounded,
+                                size: 22,
+                                color: SonicTokens.secondaryContainer,
+                              ),
+                              onPressed: onToggleFullscreen ?? onOpenFullscreen,
+                            ),
+                            IconButton(
+                              tooltip: 'Thu nhỏ',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 32, minHeight: 32),
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: SonicTokens.textSecondary,
+                              ),
+                              onPressed: onClose,
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+              // Stage Box - ALWAYS in this exact Expanded slot!
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    showFull ? 0 : 14,
+                    showFull ? 0 : 8,
+                    showFull ? 0 : 14,
+                    showFull ? 0 : 4,
+                  ),
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: showFull
+                          ? MediaQuery.sizeOf(context).aspectRatio
+                          : 16 / 9,
+                      child: _MediaStageBox(
+                        key: const ValueKey('cockpit_detail_stage'),
+                        track: track,
+                        isVideoMode: snap.isVideoMode,
+                        isPlaying: snap.isPlaying,
+                        position: snap.position,
+                        aspectRatio: showFull
+                            ? MediaQuery.sizeOf(context).aspectRatio
+                            : 16 / 9,
+                        cleanMobileStage: true,
+                        isFullscreen: showFull,
+                        onToggleFullscreen:
+                            onToggleFullscreen ?? onOpenFullscreen,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Bottom Controls: Title, Scrubber, Transport - hidden when showFull
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: showFull ? 0 : null,
+                child: showFull
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        track?.title ?? 'No Track Playing',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        track?.artist ?? 'Soniclane Cabin',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          color: SonicTokens.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (track != null) ...[
+                                  IconButton(
+                                    icon: Icon(
+                                      snap.isLiked
+                                          ? Icons.favorite_rounded
+                                          : Icons.favorite_border_rounded,
+                                      color: snap.isLiked
+                                          ? SonicTokens.primaryRed
+                                          : SonicTokens.textSecondary,
+                                      size: 19,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 32, minHeight: 32),
+                                    onPressed: () => SonicAudioEngine
+                                        .instance
+                                        .toggleLikeCurrent(),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: const Icon(Icons.playlist_add_rounded,
+                                        size: 21,
+                                        color:
+                                            SonicTokens.secondaryContainer),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 32, minHeight: 32),
+                                    onPressed: () => AddToPlaylistSheet.show(
+                                        context, track),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            _CockpitScrubber(
+                              position: snap.position,
+                              duration: snap.duration,
+                            ),
+                            const SizedBox(height: 6),
+                            _TransportCluster(
+                              snap: snap,
+                              centerPlaySize: 48,
+                              buttonMinSize: 36,
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
+          if (showFull)
             Positioned(
               top: 14,
               left: 14,
@@ -800,6 +1073,7 @@ class CockpitDetailPane extends ConsumerWidget {
                 ),
               ),
             ),
+          if (showFull)
             Positioned(
               bottom: 0,
               left: 0,
@@ -901,226 +1175,6 @@ class CockpitDetailPane extends ConsumerWidget {
                 ),
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: SonicTokens.surfaceBase,
-        border: Border(right: BorderSide(color: SonicTokens.divider, width: 1)),
-      ),
-      child: Column(
-        children: [
-          // Top Bar: [ ĐANG PHÁT ]  [ AUDIO | VIDEO ]  [ Phóng to ]  [ Thu nhỏ X ]
-          Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: SonicTokens.surfaceLowest.withOpacity(0.92),
-              border: const Border(
-                bottom: BorderSide(color: SonicTokens.divider, width: 1),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.play_circle_fill_rounded,
-                  size: 16,
-                  color: SonicTokens.secondaryContainer,
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'ĐANG PHÁT',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                    color: SonicTokens.secondaryLight,
-                  ),
-                ),
-                const Spacer(),
-                _AudioVideoTogglePill(
-                  isVideo: snap.isVideoMode,
-                  onChanged: (wantVideo) async {
-                    if (wantVideo) {
-                      final settings = ref.read(settingsProvider);
-                      final motion =
-                          ref.read(vehicleMotionProvider).valueOrNull;
-                      if (settings.drivingVideoLockout &&
-                          motion != null &&
-                          motion.isMovingOverThreshold) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            backgroundColor: SonicTokens.warningAmber,
-                            content: Text(
-                              'Driving Lockout: Video disabled while vehicle is moving.',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-                    }
-                    await SonicAudioEngine.instance.setVideoMode(wantVideo);
-                    if (!wantVideo) {
-                      await SonicAudioEngine.instance.play();
-                    }
-                  },
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  tooltip: 'Phóng to toàn màn hình',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: const Icon(
-                    Icons.fullscreen_rounded,
-                    size: 22,
-                    color: SonicTokens.secondaryContainer,
-                  ),
-                  onPressed: onToggleFullscreen ?? onOpenFullscreen,
-                ),
-                IconButton(
-                  tooltip: 'Thu nhỏ',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    size: 18,
-                    color: SonicTokens.textSecondary,
-                  ),
-                  onPressed: onClose,
-                ),
-              ],
-            ),
-          ),
-          // Flexible Middle Stage + Pinned Bottom Controls
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isCompactHeight = constraints.maxHeight < 360;
-
-                Widget content = Column(
-                  children: [
-                    // Stage Box: Flexibly fits available height while keeping 16:9
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-                        child: Center(
-                          child: AspectRatio(
-                            aspectRatio: 16 / 9,
-                            child: _MediaStageBox(
-                              track: track,
-                              isVideoMode: snap.isVideoMode,
-                              isPlaying: snap.isPlaying,
-                              position: snap.position,
-                              aspectRatio: 16 / 9,
-                              cleanMobileStage: true,
-                              onToggleFullscreen:
-                                  onToggleFullscreen ?? onOpenFullscreen,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Bottom Controls (Title, Scrubber, Transport buttons)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Title + Artist + Like + Add
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      track?.title ?? 'No Track Playing',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      track?.artist ?? 'Soniclane Cabin',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        color: SonicTokens.textSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (track != null) ...[
-                                IconButton(
-                                  icon: Icon(
-                                    snap.isLiked
-                                        ? Icons.favorite_rounded
-                                        : Icons.favorite_border_rounded,
-                                    color: snap.isLiked
-                                        ? SonicTokens.primaryRed
-                                        : SonicTokens.textSecondary,
-                                    size: 19,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                  onPressed: () =>
-                                      SonicAudioEngine.instance.toggleLikeCurrent(),
-                                ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(Icons.playlist_add_rounded,
-                                      size: 21, color: SonicTokens.secondaryContainer),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                  onPressed: () =>
-                                      AddToPlaylistSheet.show(context, track),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          _CockpitScrubber(
-                            position: snap.position,
-                            duration: snap.duration,
-                          ),
-                          const SizedBox(height: 6),
-                          _TransportCluster(
-                            snap: snap,
-                            centerPlaySize: 48,
-                            buttonMinSize: 36,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-
-                if (isCompactHeight) {
-                  return SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: SizedBox(
-                      height: 380,
-                      child: content,
-                    ),
-                  );
-                }
-                return content;
-              },
-            ),
-          ),
         ],
       ),
     );
@@ -1226,12 +1280,12 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
             track.source == TrackSource.local ||
             track.source == TrackSource.googleDrive);
 
-    // On mobile devices & tablets, when playing online custom streams,
+    // On mobile devices & tablets, when in Video mode for online custom streams,
     // ALWAYS render the instant Cốc Cốc-style Web Player with ad suppression!
-    // In Video mode: the video is displayed.
-    // In Audio mode: video is kept playing underneath Album Artwork + Waveform/Lyrics.
     // For local USB / Dashcam files, native mpv/media_kit is used.
-    final renderWebPlayer = _isMobileDevice && isCustomStream;
+    final renderWebPlayer = widget.isVideoMode &&
+        _isMobileDevice &&
+        isCustomStream;
 
     final canRenderNativeVideo = widget.isVideoMode &&
         !renderWebPlayer &&
@@ -1253,34 +1307,6 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
               initialUrl: '$_kWebWatchBase${track.id}',
             ),
           ),
-          if (!widget.isVideoMode && track != null) ...[
-            TrackArtwork(
-              url: artUrl,
-              radius: widget.isFullscreen ? 0 : SonicTokens.radiusXl,
-              fallbackIcon: Icons.album_rounded,
-            ),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(
-                  widget.isFullscreen ? 0 : SonicTokens.radiusXl),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.28),
-                      Colors.black.withOpacity(0.62),
-                    ],
-                  ),
-                ),
-                child: _AudioWaveformAndLyricsOverlay(
-                  track: track,
-                  isPlaying: widget.isPlaying,
-                  position: widget.position,
-                ),
-              ),
-            ),
-          ],
         ] else if (canRenderNativeVideo) ...[
           ClipRRect(
             borderRadius: BorderRadius.circular(
@@ -1494,18 +1520,12 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     } catch (_) {}
     // Pause background audio engine so Web Video plays clearly without echo
     SonicAudioEngine.instance.pause();
-    SonicAudioEngine.instance.onWebSeek = _seekWebVideo;
     _initController();
     Future.delayed(const Duration(milliseconds: 3500), () {
       if (mounted && !_isReady) {
         setState(() => _isReady = true);
       }
     });
-  }
-
-  void _seekWebVideo(Duration pos) {
-    _ctrl?.runJavaScript(
-        "try { var v = document.querySelector('video'); if (v) v.currentTime = ${pos.inSeconds}; } catch(e){}");
   }
 
   @override
@@ -1540,22 +1560,6 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
     _ctrl = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(
-        'SoniclaneSync',
-        onMessageReceived: (JavaScriptMessage msg) {
-          try {
-            final data = jsonDecode(msg.message) as Map<String, dynamic>;
-            final posSec = (data['pos'] as num?)?.toDouble() ?? 0.0;
-            final durSec = (data['dur'] as num?)?.toDouble() ?? 0.0;
-            final paused = data['paused'] == true;
-            SonicAudioEngine.instance.syncWebProgress(
-              position: Duration(seconds: posSec.round()),
-              duration: Duration(seconds: durSec.round()),
-              isPaused: paused,
-            );
-          } catch (_) {}
-        },
-      )
       ..setUserAgent(
         'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
       )
@@ -1662,13 +1666,6 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                   }
                   video.volume = 1.0;
                 }
-                if (window.SoniclaneSync && isFinite(video.duration)) {
-                  window.SoniclaneSync.postMessage(JSON.stringify({
-                    pos: video.currentTime || 0,
-                    dur: video.duration || 0,
-                    paused: video.paused
-                  }));
-                }
               }
 
               var playBtn = document.querySelector('.ytp-large-play-button, .player-control-play-pause-icon, button[aria-label*="Play" i], button[aria-label*="Phát" i]');
@@ -1698,9 +1695,6 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
 
   @override
   void dispose() {
-    if (SonicAudioEngine.instance.onWebSeek == _seekWebVideo) {
-      SonicAudioEngine.instance.onWebSeek = null;
-    }
     try {
       WakelockPlus.disable();
     } catch (_) {}
@@ -1829,8 +1823,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
               bottom: 10,
               right: 10,
               child: InkWell(
-                onTap: widget.onToggleFullscreen ??
-                    () => _WebFullscreenVideoPage.open(context, widget.videoId),
+                onTap: widget.onToggleFullscreen,
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
                   width: 38,
