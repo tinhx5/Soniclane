@@ -161,7 +161,9 @@ class WifiTransferModal extends ConsumerWidget {
                               color: SonicTokens.primaryRed),
                           onPressed: () async {
                             final nav = Navigator.of(context);
-                            final isMobile = MediaQuery.sizeOf(context).width < 700;
+                            final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+                            final isMobile = shortestSide < 600 ||
+                                MediaQuery.sizeOf(context).width < 700;
                             nav.pop();
                             if (isMobile) {
                               ref.read(mobileFullPlayerOpenProvider.notifier).state = true;

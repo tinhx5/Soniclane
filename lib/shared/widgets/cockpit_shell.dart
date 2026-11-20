@@ -92,7 +92,9 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
           autofocus: true,
           child: LayoutBuilder(
             builder: (context, constraints) {
-            final isDesktopOrTablet = constraints.maxWidth >= 700;
+            final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+            final isDesktopOrTablet =
+                shortestSide >= 600 && constraints.maxWidth >= 700;
             final viewInset = MediaQuery.viewInsetsOf(context).bottom;
             final hasKeyboard = viewInset > 40 ||
                 (WidgetsBinding.instance.platformDispatcher.views.isNotEmpty &&

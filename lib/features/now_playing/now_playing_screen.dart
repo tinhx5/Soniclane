@@ -35,9 +35,9 @@ class NowPlayingScreen extends ConsumerStatefulWidget {
   static Future<void> open(BuildContext context) {
     try {
       final container = ProviderScope.containerOf(context, listen: false);
+      final shortestSide = MediaQuery.sizeOf(context).shortestSide;
       final isDesktopOrTablet =
-          MediaQuery.sizeOf(context).shortestSide >= 600 ||
-              MediaQuery.sizeOf(context).width >= 700;
+          shortestSide >= 600 && MediaQuery.sizeOf(context).width >= 700;
       if (!isDesktopOrTablet) {
         container.read(mobileFullPlayerOpenProvider.notifier).state = true;
         return Future.value();
@@ -63,6 +63,14 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   Timer? _fullscreenHudTimer;
   final GlobalKey _stageKey = GlobalKey();
 
+  @override
+  void initState() {
+    super.initState();
+    SonicAudioEngine.instance.onStopDismiss = () {
+      WebVideoManager.instance.release();
+    };
+  }
+
   void _onUserInteraction() {
     if (!_showFullscreenControls) {
       setState(() => _showFullscreenControls = true);
@@ -80,9 +88,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     try {
       ref.read(cockpitSplitDetailOpenProvider.notifier).state = false;
     } catch (_) {}
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
     final isDesktopOrTablet =
-        MediaQuery.sizeOf(context).shortestSide >= 600 ||
-            MediaQuery.sizeOf(context).width >= 700;
+        shortestSide >= 600 && MediaQuery.sizeOf(context).width >= 700;
     if (isDesktopOrTablet && Navigator.of(context).canPop()) {
       Navigator.of(context).maybePop();
     }
@@ -183,7 +191,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 right: !showFullscreenVideo,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 900;
+                    final isWide = !isMobilePhone && constraints.maxWidth >= 900;
                     if (isWide) {
                       return _buildWidescreenCockpit(
                         context,
@@ -1511,43 +1519,30 @@ class _EmbeddedWebVideoStage extends StatefulWidget {
   State<_EmbeddedWebVideoStage> createState() => _EmbeddedWebVideoStageState();
 }
 
-class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
-  WebViewController? _ctrl;
+class WebVideoManager {
+  static final WebVideoManager instance = WebVideoManager._();
+  WebVideoManager._();
+
+  WebViewController? _controller;
+  String? _activeVideoId;
   bool _isReady = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Keep screen awake while watching video
-    try {
-      WakelockPlus.enable();
-    } catch (_) {}
-    _initController();
-    Future.delayed(const Duration(milliseconds: 3500), () {
-      if (mounted && !_isReady) {
-        setState(() => _isReady = true);
-      }
-    });
-  }
+  WebViewController? get controller => _controller;
+  String? get activeVideoId => _activeVideoId;
+  bool get isReady => _isReady;
 
-  @override
-  void didUpdateWidget(covariant _EmbeddedWebVideoStage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.videoId != widget.videoId) {
-      _loadCurrent();
-    }
-    if (oldWidget.isPlaying != widget.isPlaying) {
-      if (widget.isPlaying) {
-        _ctrl?.runJavaScript(
-            "try { document.querySelector('video')?.play(); } catch(e){}");
-      } else {
-        _ctrl?.runJavaScript(
-            "try { document.querySelector('video')?.pause(); } catch(e){}");
+  WebViewController getOrCreateController(String videoId,
+      {VoidCallback? onReady}) {
+    if (_controller != null && _activeVideoId == videoId) {
+      if (_isReady && onReady != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
       }
+      return _controller!;
     }
-  }
 
-  void _initController() {
+    _activeVideoId = videoId;
+    _isReady = false;
+
     late final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
       params = WebKitWebViewControllerCreationParams(
@@ -1560,7 +1555,8 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
       params = const PlatformWebViewControllerCreationParams();
     }
 
-    _ctrl = WebViewController.fromPlatformCreationParams(params)
+    late final WebViewController ctrl;
+    ctrl = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setUserAgent(
         'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
@@ -1569,14 +1565,15 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (p) {
-            if (p > 50) _injectCleanerScript();
+            if (p > 50) _injectCleanerScript(ctrl);
           },
           onPageStarted: (_) {
-            _injectCleanerScript();
+            _injectCleanerScript(ctrl);
           },
           onPageFinished: (_) {
-            _injectCleanerScript();
-            if (mounted) setState(() => _isReady = true);
+            _injectCleanerScript(ctrl);
+            _isReady = true;
+            onReady?.call();
           },
           onWebResourceError: (err) {
             debugPrint('[WebVideo] resource error: ${err.description}');
@@ -1584,31 +1581,21 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
         ),
       );
 
-    if (_ctrl!.platform is AndroidWebViewController) {
-      final androidCtrl = _ctrl!.platform as AndroidWebViewController;
+    if (ctrl.platform is AndroidWebViewController) {
+      final androidCtrl = ctrl.platform as AndroidWebViewController;
       androidCtrl.setMediaPlaybackRequiresUserGesture(false);
     }
 
-    _loadCurrent();
+    _controller = ctrl;
+    ctrl.loadRequest(Uri.parse('$_kWebWatchBase$videoId'));
+    return ctrl;
   }
 
-  void _loadCurrent() {
-    if (mounted) {
-      setState(() => _isReady = false);
-    }
-    _ctrl?.loadRequest(Uri.parse('$_kWebWatchBase${widget.videoId}'));
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted && !_isReady) {
-        setState(() => _isReady = true);
-      }
-    });
-  }
-
-  Future<void> _injectCleanerScript() async {
+  static Future<void> _injectCleanerScript(WebViewController? ctrl) async {
     const js = """
       (function() {
         function applyStyle() {
-          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
+          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
           var el = document.getElementById('sl-clean-style');
           if (!el) {
             el = document.createElement('style');
@@ -1657,7 +1644,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 }
               }
 
-              var playBtn = document.querySelector('.ytp-large-play-button, .player-control-play-pause-icon, button[aria-label*="Play" i], button[aria-label*="Phát" i]');
+              var playBtn = document.querySelector('.ytp-large-play-button, button[aria-label*="Play" i], button[aria-label*="Phát" i]');
               if (playBtn && playBtn.offsetParent !== null) {
                 playBtn.click();
               }
@@ -1678,8 +1665,76 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
       })();
     """;
     try {
-      await _ctrl?.runJavaScript(js);
+      await ctrl?.runJavaScript(js);
     } catch (_) {}
+  }
+
+  void release() {
+    try {
+      _controller?.runJavaScript(
+          "try { if (window._slLoop) clearInterval(window._slLoop); document.querySelector('video')?.pause(); } catch(e){}");
+      _controller?.loadRequest(Uri.parse('about:blank'));
+    } catch (_) {}
+    _controller = null;
+    _activeVideoId = null;
+    _isReady = false;
+  }
+}
+
+class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
+  WebViewController? _ctrl;
+  bool _isReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      WakelockPlus.enable();
+    } catch (_) {}
+    final isAlreadyLoaded =
+        WebVideoManager.instance.activeVideoId == widget.videoId &&
+            WebVideoManager.instance.controller != null;
+    _ctrl = WebVideoManager.instance.getOrCreateController(
+      widget.videoId,
+      onReady: () {
+        if (mounted && !_isReady) {
+          setState(() => _isReady = true);
+        }
+      },
+    );
+    _isReady = isAlreadyLoaded || WebVideoManager.instance.isReady;
+    if (!_isReady) {
+      Future.delayed(const Duration(milliseconds: 3500), () {
+        if (mounted && !_isReady) {
+          setState(() => _isReady = true);
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _EmbeddedWebVideoStage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.videoId != widget.videoId) {
+      _ctrl = WebVideoManager.instance.getOrCreateController(
+        widget.videoId,
+        onReady: () {
+          if (mounted && !_isReady) {
+            setState(() => _isReady = true);
+          }
+        },
+      );
+      _isReady = WebVideoManager.instance.isReady;
+    }
+    if (oldWidget.isPlaying != widget.isPlaying) {
+      if (widget.isPlaying) {
+        _ctrl?.runJavaScript(
+            "try { document.querySelector('video')?.play(); } catch(e){}");
+      } else {
+        _ctrl?.runJavaScript(
+            "try { document.querySelector('video')?.pause(); } catch(e){}");
+      }
+    }
   }
 
   @override
@@ -1687,9 +1742,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     try {
       WakelockPlus.disable();
     } catch (_) {}
-    _ctrl?.runJavaScript(
-        "try { if (window._slLoop) clearInterval(window._slLoop); document.querySelector('video')?.pause(); } catch(e){}");
-    _ctrl?.loadRequest(Uri.parse('about:blank'));
+    // The controller remains alive in WebVideoManager across minimize/restore/rotations.
     super.dispose();
   }
 
@@ -1755,8 +1808,9 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 children: [
                   InkWell(
                     onTap: () {
-                      _injectCleanerScript();
-                      _loadCurrent();
+                      WebVideoManager._injectCleanerScript(_ctrl);
+                      _ctrl?.loadRequest(
+                          Uri.parse('$_kWebWatchBase${widget.videoId}'));
                     },
                     borderRadius: BorderRadius.circular(999),
                     child: Container(

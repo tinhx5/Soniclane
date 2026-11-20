@@ -344,6 +344,7 @@ class SonicAudioEngine {
   Stream<PlaybackSnapshot> get stream => _stateController.stream;
   VideoController? get videoController => _videoController;
   bool get preferredVideoMode => _preferredVideoMode;
+  VoidCallback? onStopDismiss;
 
   bool _initialized = false;
 
@@ -1004,6 +1005,11 @@ class SonicAudioEngine {
   }
 
   Future<void> stop({bool dismiss = false}) async {
+    if (dismiss) {
+      try {
+        onStopDismiss?.call();
+      } catch (_) {}
+    }
     await _player?.stop();
     await _disableWakeLock();
     _emit(_snapshot.copyWith(

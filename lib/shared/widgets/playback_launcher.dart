@@ -19,7 +19,8 @@ Future<void> playTrackAndOpenMobile(
   bool? keepVideoMode,
 }) async {
   ref.read(resumeCardVisibleProvider.notifier).state = false;
-  final isMobile = MediaQuery.sizeOf(context).width < 700;
+  final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+  final isMobile = shortestSide < 600 || MediaQuery.sizeOf(context).width < 700;
 
   if (isMobile) {
     ref.read(mobileFullPlayerOpenProvider.notifier).state = true;
