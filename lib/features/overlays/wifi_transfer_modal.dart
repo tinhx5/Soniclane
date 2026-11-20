@@ -164,7 +164,7 @@ class WifiTransferModal extends ConsumerWidget {
                             final isMobile = MediaQuery.sizeOf(context).width < 700;
                             nav.pop();
                             if (isMobile) {
-                              NowPlayingScreen.open(nav.context);
+                              ref.read(mobileFullPlayerOpenProvider.notifier).state = true;
                             }
                             await SonicAudioEngine.instance.playTrack(
                               t,

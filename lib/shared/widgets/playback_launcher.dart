@@ -22,7 +22,7 @@ Future<void> playTrackAndOpenMobile(
   final isMobile = MediaQuery.sizeOf(context).width < 700;
 
   if (isMobile) {
-    NowPlayingScreen.open(context);
+    ref.read(mobileFullPlayerOpenProvider.notifier).state = true;
   } else {
     // Open 50/50 split detail player in landscape
     ref.read(cockpitSplitDetailOpenProvider.notifier).state = true;

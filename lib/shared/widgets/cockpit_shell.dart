@@ -194,6 +194,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                   ),
                                 Expanded(
                                   child: Stack(
+                                    clipBehavior: Clip.hardEdge,
                                     fit: StackFit.expand,
                                     children: [
                                       IndexedStack(
@@ -265,8 +266,8 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                         ),
                                       ),
                                     ],
-                                  ),
                                 ),
+                              ),
                               ],
                             ),
                             if (snap.statusBanner != null && !isKeyboardOpen && !isVideoFullscreen)
@@ -343,6 +344,7 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                 child: SafeArea(
                   bottom: false,
                   child: Stack(
+                    clipBehavior: Clip.hardEdge,
                     children: [
                       Column(
                         children: [
@@ -426,19 +428,25 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                           ),
                         ),
                       Positioned.fill(
-                        child: Visibility(
-                          visible: isMobileFullOpen,
-                          maintainState: true,
-                          child: PopScope(
-                            canPop: !isMobileFullOpen,
-                            onPopInvokedWithResult: (didPop, result) {
-                              if (!didPop && isMobileFullOpen) {
-                                ref
-                                    .read(mobileFullPlayerOpenProvider.notifier)
-                                    .state = false;
-                              }
-                            },
-                            child: const NowPlayingScreen(),
+                        child: IgnorePointer(
+                          ignoring: !isMobileFullOpen,
+                          child: AnimatedSlide(
+                            offset: isMobileFullOpen
+                                ? Offset.zero
+                                : const Offset(0, 1.0),
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            child: PopScope(
+                              canPop: !isMobileFullOpen,
+                              onPopInvokedWithResult: (didPop, result) {
+                                if (!didPop && isMobileFullOpen) {
+                                  ref
+                                      .read(mobileFullPlayerOpenProvider.notifier)
+                                      .state = false;
+                                }
+                              },
+                              child: const NowPlayingScreen(),
+                            ),
                           ),
                         ),
                       ),

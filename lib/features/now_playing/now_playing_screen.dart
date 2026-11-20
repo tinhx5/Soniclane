@@ -80,7 +80,10 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     try {
       ref.read(cockpitSplitDetailOpenProvider.notifier).state = false;
     } catch (_) {}
-    if (Navigator.of(context).canPop()) {
+    final isDesktopOrTablet =
+        MediaQuery.sizeOf(context).shortestSide >= 600 ||
+            MediaQuery.sizeOf(context).width >= 700;
+    if (isDesktopOrTablet && Navigator.of(context).canPop()) {
       Navigator.of(context).maybePop();
     }
   }
@@ -2663,6 +2666,12 @@ class _CleanMobileTitleBlock extends ConsumerWidget {
             : (track?.artist.trim() ?? '');
     final isFollowed = hasArtist &&
         library.isFollowed(targetChannelId, channelName: track!.artist);
+
+    final isMobileFullOpen = ref.watch(mobileFullPlayerOpenProvider);
+    final isMobileDevice = MediaQuery.sizeOf(context).width < 700;
+    if (isMobileDevice && !isMobileFullOpen) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
