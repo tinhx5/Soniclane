@@ -12,6 +12,12 @@ import 'database_service.dart';
 import 'storage_scanner.dart';
 import 'stream_resolver.dart';
 
+abstract class WebVideoBridge {
+  static void Function()? onPlay;
+  static void Function()? onPause;
+  static void Function(Duration)? onSeek;
+}
+
 class PlaybackSnapshot {
   final MediaTrack? currentTrack;
   final List<MediaTrack> queue;
@@ -978,6 +984,12 @@ class SonicAudioEngine {
     }
   }
 
+  bool get _isOnlineMobileVideo =>
+      !kIsWeb &&
+      (Platform.isAndroid || Platform.isIOS) &&
+      _snapshot.isVideoMode &&
+      _snapshot.currentTrack?.source == TrackSource.customStream;
+
   Future<void> togglePlayPause() async {
     if (_snapshot.isPlaying) {
       await pause();
@@ -987,12 +999,20 @@ class SonicAudioEngine {
   }
 
   Future<void> play() async {
-    await _player?.play();
+    if (_isOnlineMobileVideo) {
+      await _player?.pause();
+      WebVideoBridge.onPlay?.call();
+    } else {
+      await _player?.play();
+    }
     _emit(_snapshot.copyWith(isPlaying: true));
     _syncHandlerState();
   }
 
   Future<void> pause() async {
+    if (_isOnlineMobileVideo) {
+      WebVideoBridge.onPause?.call();
+    }
     await _player?.pause();
     _emit(_snapshot.copyWith(isPlaying: false));
     if (_snapshot.currentTrack != null) {
@@ -1010,6 +1030,7 @@ class SonicAudioEngine {
         onStopDismiss?.call();
       } catch (_) {}
     }
+    WebVideoBridge.onPause?.call();
     await _player?.stop();
     await _disableWakeLock();
     _emit(_snapshot.copyWith(
@@ -1022,8 +1043,23 @@ class SonicAudioEngine {
   }
 
   Future<void> seekTo(Duration position) async {
-    await _player?.seek(position);
+    if (_isOnlineMobileVideo) {
+      WebVideoBridge.onSeek?.call(position);
+    } else {
+      await _player?.seek(position);
+    }
     _emit(_snapshot.copyWith(position: position));
+    _syncHandlerState();
+  }
+
+  void syncWebPlaybackPosition(Duration position, {Duration? duration}) {
+    if (!_isOnlineMobileVideo) return;
+    _emit(_snapshot.copyWith(
+      position: position,
+      duration: duration != null && duration > Duration.zero
+          ? duration
+          : _snapshot.duration,
+    ));
     _syncHandlerState();
   }
 
@@ -1230,6 +1266,7 @@ class SonicAudioEngine {
     final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
     if (!enableVideo) {
+      WebVideoBridge.onPause?.call();
       _emit(_snapshot.copyWith(
         isVideoMode: false,
         isBuffering: false,
@@ -1242,6 +1279,7 @@ class SonicAudioEngine {
               keepVideoMode: false,
               resumeAt: _snapshot.position);
         } else {
+          await _player?.seek(_snapshot.position);
           await _player?.play();
         }
       }
@@ -1255,6 +1293,7 @@ class SonicAudioEngine {
       // On mobile devices, online video is rendered instantly via Web Player (Cốc Cốc-style).
       // Pause native background audio player to prevent audio collision.
       await _player?.pause();
+      WebVideoBridge.onPlay?.call();
       _emit(_snapshot.copyWith(
         isVideoMode: true,
         isPlaying: true,

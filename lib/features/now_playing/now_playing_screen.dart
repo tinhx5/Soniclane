@@ -87,15 +87,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     try {
       ref.read(cockpitSplitDetailOpenProvider.notifier).state = false;
     } catch (_) {}
-    final snap = SonicAudioEngine.instance.snapshot;
-    if (snap.isPlaying) {
-      WebVideoManager.instance.controller?.runJavaScript(
-          "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-      Future.delayed(const Duration(milliseconds: 260), () {
-        WebVideoManager.instance.controller?.runJavaScript(
-            "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-      });
-    }
     final shortestSide = MediaQuery.sizeOf(context).shortestSide;
     final isDesktopOrTablet =
         shortestSide >= 600 && MediaQuery.sizeOf(context).width >= 700;
@@ -143,27 +134,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     final settings = ref.watch(settingsProvider);
     final track = snap.currentTrack;
     final isMobilePhone = MediaQuery.sizeOf(context).shortestSide < 600;
-
-    ref.listen<bool>(mobileFullPlayerOpenProvider, (prev, curr) {
-      if (snap.isPlaying) {
-        WebVideoManager.instance.controller?.runJavaScript(
-            "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-        Future.delayed(const Duration(milliseconds: 280), () {
-          WebVideoManager.instance.controller?.runJavaScript(
-              "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-        });
-      }
-    });
-    ref.listen<bool>(cockpitSplitDetailOpenProvider, (prev, curr) {
-      if (snap.isPlaying) {
-        WebVideoManager.instance.controller?.runJavaScript(
-            "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-        Future.delayed(const Duration(milliseconds: 280), () {
-          WebVideoManager.instance.controller?.runJavaScript(
-              "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-        });
-      }
-    });
 
     // Fullscreen video is strictly manual: only active when user explicitly taps fullscreen!
     final showFullscreenVideo =
@@ -1533,7 +1503,21 @@ class _EmbeddedWebVideoStage extends StatefulWidget {
 
 class WebVideoManager {
   static final WebVideoManager instance = WebVideoManager._();
-  WebVideoManager._();
+  WebVideoManager._() {
+    WebVideoBridge.onPlay = () {
+      _controller?.runJavaScript(
+          "try { window._slShouldPlay = true; if (window._slSafeResume) window._slSafeResume(); else { var v = document.querySelector('video'); if (v && v.paused) v.play(); } } catch(e){}");
+    };
+    WebVideoBridge.onPause = () {
+      _controller?.runJavaScript(
+          "try { window._slShouldPlay = false; var v = document.querySelector('video'); if (v) v.pause(); } catch(e){}");
+    };
+    WebVideoBridge.onSeek = (pos) {
+      final sec = pos.inMilliseconds / 1000.0;
+      _controller?.runJavaScript(
+          "try { var v = document.querySelector('video'); if (v) v.currentTime = $sec; } catch(e){}");
+    };
+  }
 
   WebViewController? _controller;
   String? _activeVideoId;
@@ -1576,6 +1560,29 @@ class WebVideoManager {
         'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
       )
       ..setBackgroundColor(Colors.black)
+      ..addJavaScriptChannel(
+        'SoniclaneBridge',
+        onMessageReceived: (JavaScriptMessage msg) {
+          try {
+            final data = jsonDecode(msg.message);
+            if (data is Map<String, dynamic>) {
+              final type = data['type'];
+              if (type == 'timeupdate') {
+                final cur = (data['cur'] as num?)?.toDouble() ?? 0.0;
+                final dur = (data['dur'] as num?)?.toDouble() ?? 0.0;
+                SonicAudioEngine.instance.syncWebPlaybackPosition(
+                  Duration(milliseconds: (cur * 1000).round()),
+                  duration: dur > 0
+                      ? Duration(milliseconds: (dur * 1000).round())
+                      : null,
+                );
+              } else if (type == 'ended') {
+                SonicAudioEngine.instance.skipToNext();
+              }
+            }
+          } catch (_) {}
+        },
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (p) {
@@ -1646,18 +1653,49 @@ class WebVideoManager {
           window._slShouldPlay = true;
         }
 
+        function safeResume() {
+          var v = document.querySelector('video');
+          if (!v || !window._slShouldPlay || v.ended) return;
+          if (!v.paused) return;
+          if (window._slResuming) return;
+          window._slResuming = true;
+          v.play().catch(function(){}).finally(function() {
+            setTimeout(function() { window._slResuming = false; }, 350);
+          });
+        }
+        window._slSafeResume = safeResume;
+
         function hookVideo(v) {
           if (!v || v._slHooked) return;
           v._slHooked = true;
           ensureInline(v);
           v.addEventListener('pause', function() {
             if (window._slShouldPlay && !v.ended) {
-              setTimeout(function() {
-                if (window._slShouldPlay && v.paused && !v.ended) {
-                  v.play().catch(function() {});
-                }
-              }, 40);
+              setTimeout(safeResume, 40);
             }
+          });
+          var lastReport = 0;
+          v.addEventListener('timeupdate', function() {
+            var now = Date.now();
+            if (now - lastReport >= 500) {
+              lastReport = now;
+              try {
+                if (window.SoniclaneBridge) {
+                  window.SoniclaneBridge.postMessage(JSON.stringify({
+                    type: 'timeupdate',
+                    cur: v.currentTime,
+                    dur: v.duration || 0
+                  }));
+                }
+              } catch(e) {}
+            }
+          });
+          v.addEventListener('ended', function() {
+            try {
+              if (window.SoniclaneBridge) {
+                window.SoniclaneBridge.postMessage(JSON.stringify({ type: 'ended' }));
+              }
+            } catch(e) {}
           });
         }
 
@@ -1691,10 +1729,7 @@ class WebVideoManager {
                 video.volume = 1.0;
                 // Auto-resume if app should be playing but video paused due to view change or resize
                 if (window._slShouldPlay && video.paused && !video.ended) {
-                  video.play().catch(function() {
-                    video.muted = true;
-                    video.play().catch(function(){});
-                  });
+                  safeResume();
                 }
               }
             } catch (e) {}
@@ -1708,7 +1743,7 @@ class WebVideoManager {
                 v.muted = false;
                 v.volume = 1.0;
                 if (window._slShouldPlay && v.paused) {
-                  v.play().catch(function(){});
+                  safeResume();
                 }
               }
             }, { passive: true });
@@ -1718,6 +1753,13 @@ class WebVideoManager {
     """;
     try {
       await ctrl?.runJavaScript(js);
+    } catch (_) {}
+  }
+
+  void pause() {
+    try {
+      _controller?.runJavaScript(
+          "try { window._slShouldPlay = false; document.querySelector('video')?.pause(); } catch(e){}");
     } catch (_) {}
   }
 
@@ -1780,22 +1822,14 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     }
     if (oldWidget.isPlaying != widget.isPlaying) {
       if (widget.isPlaying) {
-        _ctrl?.runJavaScript(
-            "try { window._slShouldPlay = true; document.querySelector('video')?.play(); } catch(e){}");
+        WebVideoBridge.onPlay?.call();
       } else {
-        _ctrl?.runJavaScript(
-            "try { window._slShouldPlay = false; document.querySelector('video')?.pause(); } catch(e){}");
+        WebVideoBridge.onPause?.call();
       }
     }
     if (oldWidget.isFullscreen != widget.isFullscreen && widget.isPlaying) {
       _ctrl?.runJavaScript(
-          "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-      Future.delayed(const Duration(milliseconds: 250), () {
-        if (mounted && widget.isPlaying) {
-          _ctrl?.runJavaScript(
-              "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-        }
-      });
+          "try { if (window._slSafeResume) window._slSafeResume(); } catch(e){}");
     }
   }
 

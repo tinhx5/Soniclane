@@ -308,17 +308,8 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                                       .read(
                                           cockpitSplitDetailOpenProvider.notifier)
                                       .state = true,
-                                  onOpenFull: () {
-                                    NowPlayingScreen.open(context);
-                                    if (snap.isPlaying) {
-                                      WebVideoManager.instance.controller?.runJavaScript(
-                                          "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-                                      Future.delayed(const Duration(milliseconds: 260), () {
-                                        WebVideoManager.instance.controller?.runJavaScript(
-                                            "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-                                      });
-                                    }
-                                  },
+                                  onOpenFull: () =>
+                                      NowPlayingScreen.open(context),
                                   onClose: () {
                                     ref
                                         .read(
@@ -427,19 +418,9 @@ class _CockpitShellState extends ConsumerState<CockpitShell>
                           bottom: 12 + MediaQuery.of(context).padding.bottom,
                           child: _MobileFloatingMiniPlayer(
                             snap: snap,
-                            onOpenFull: () {
-                              ref
-                                  .read(mobileFullPlayerOpenProvider.notifier)
-                                  .state = true;
-                              if (snap.isPlaying) {
-                                WebVideoManager.instance.controller?.runJavaScript(
-                                    "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-                                Future.delayed(const Duration(milliseconds: 260), () {
-                                  WebVideoManager.instance.controller?.runJavaScript(
-                                      "try { window._slShouldPlay = true; var v = document.querySelector('video'); if (v && v.paused) v.play(); } catch(e){}");
-                                });
-                              }
-                            },
+                            onOpenFull: () => ref
+                                .read(mobileFullPlayerOpenProvider.notifier)
+                                .state = true,
                             onClose: () {
                               ref
                                   .read(mobileFullPlayerOpenProvider.notifier)
