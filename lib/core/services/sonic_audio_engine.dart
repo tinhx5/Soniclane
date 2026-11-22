@@ -803,8 +803,9 @@ class SonicAudioEngine {
     );
 
     // On mobile/in-car Android, when playing online video, Web Player handles both video and audio.
-    // Pause background native audio to prevent duplicate sound and dismiss buffering spinner.
+    // Pause and mute background native audio to prevent duplicate sound and dismiss buffering spinner.
     if (effectiveVideoMode && isMobile && isCustomOnline) {
+      await _player?.setVolume(0.0);
       await _player?.pause();
       _emit(_snapshot.copyWith(
         isBuffering: false,
@@ -1000,9 +1001,11 @@ class SonicAudioEngine {
 
   Future<void> play() async {
     if (_isOnlineMobileVideo) {
+      await _player?.setVolume(0.0);
       await _player?.pause();
       WebVideoBridge.onPlay?.call();
     } else {
+      await _player?.setVolume(100.0);
       await _player?.play();
     }
     _emit(_snapshot.copyWith(isPlaying: true));
@@ -1272,6 +1275,7 @@ class SonicAudioEngine {
         isBuffering: false,
       ));
       if (track != null) {
+        await _player?.setVolume(100.0);
         if (_player == null ||
             _player?.state.duration == Duration.zero ||
             _player?.state.completed == true) {
@@ -1291,7 +1295,8 @@ class SonicAudioEngine {
 
     if (track != null && track.source == TrackSource.customStream && isMobile) {
       // On mobile devices, online video is rendered instantly via Web Player (Cốc Cốc-style).
-      // Pause native background audio player to prevent audio collision.
+      // Silence and pause native background audio player to prevent audio collision.
+      await _player?.setVolume(0.0);
       await _player?.pause();
       WebVideoBridge.onPlay?.call();
       _emit(_snapshot.copyWith(
@@ -1475,6 +1480,10 @@ class SonicAudioEngine {
       position: _snapshot.position,
       speed: _snapshot.eqSettings.playbackSpeed,
     );
+  }
+
+  void setStatusBanner(String message) {
+    _emit(_snapshot.copyWith(statusBanner: message));
   }
 
   void clearStatusBanner() {
