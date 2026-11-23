@@ -457,49 +457,44 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     return Column(
       children: [
         // Top Header: Thu nhỏ | [ Audio | Video ] | User
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: isFullscreen ? 0 : 56,
-          child: isFullscreen
-              ? const SizedBox.shrink()
-              : Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      CockpitTouchButton(
-                        onTap: _minimize,
-                        backgroundColor: SonicTokens.surfaceCard,
-                        borderRadius: BorderRadius.circular(999),
-                        child: const Icon(Icons.keyboard_arrow_down_rounded,
-                            size: 30),
-                      ),
-                      _AudioVideoTogglePill(
-                        isVideo: snap.isVideoMode,
-                        onChanged: (v) => _onToggleVideoMode(v, snap),
-                      ),
-                      InkWell(
-                        onTap: () {
-                          ref.read(activeTabProvider.notifier).state = 2;
-                          Navigator.of(context).pop();
-                        },
-                        borderRadius: BorderRadius.circular(999),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: SonicTokens.primaryContainer,
-                          ),
-                          child: const Icon(Icons.person_rounded,
-                              color: SonicTokens.onPrimaryContainer, size: 22),
-                        ),
-                      ),
-                    ],
+        if (!isFullscreen)
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CockpitTouchButton(
+                  onTap: _minimize,
+                  backgroundColor: SonicTokens.surfaceCard,
+                  borderRadius: BorderRadius.circular(999),
+                  child: const Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 30),
+                ),
+                _AudioVideoTogglePill(
+                  isVideo: snap.isVideoMode,
+                  onChanged: (v) => _onToggleVideoMode(v, snap),
+                ),
+                InkWell(
+                  onTap: () {
+                    ref.read(activeTabProvider.notifier).state = 2;
+                    Navigator.of(context).pop();
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: SonicTokens.primaryContainer,
+                    ),
+                    child: const Icon(Icons.person_rounded,
+                        color: SonicTokens.onPrimaryContainer, size: 22),
                   ),
                 ),
-        ),
+              ],
+            ),
+          ),
         // Stage Box (Video or Artwork) - ALWAYS in this exact Expanded slot!
         Expanded(
           child: Padding(
@@ -519,8 +514,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   isPlaying: snap.isPlaying,
                   position: snap.position,
                   aspectRatio: isFullscreen
-                      ? MediaQuery.sizeOf(context).aspectRatio
-                      : 16 / 9,
+                    ? MediaQuery.sizeOf(context).aspectRatio
+                    : 16 / 9,
                   cleanMobileStage: true,
                   isFullscreen: isFullscreen,
                   onToggleFullscreen: () {
@@ -534,37 +529,32 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           ),
         ),
         // Bottom Controls (Title, Scrubber, Transport) - hidden when isFullscreen
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: isFullscreen ? 0 : null,
-          child: isFullscreen
-              ? const SizedBox.shrink()
-              : SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _CleanMobileTitleBlock(track: track),
-                      const SizedBox(height: 8),
-                      if (track != null)
-                        _MobileActionStrip(track: track, snap: snap),
-                      if (track != null) _ActivePlaylistRow(snap: snap),
-                      const SizedBox(height: 10),
-                      _CockpitScrubber(
-                        position: snap.position,
-                        duration: snap.duration,
-                      ),
-                      const SizedBox(height: 12),
-                      _TransportCluster(
-                        snap: snap,
-                        centerPlaySize: SonicTokens.mobilePlaySize,
-                        includeShuffleRepeat: false,
-                      ),
-                    ],
-                  ),
+        if (!isFullscreen)
+          SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _CleanMobileTitleBlock(track: track),
+                const SizedBox(height: 8),
+                if (track != null)
+                  _MobileActionStrip(track: track, snap: snap),
+                if (track != null) _ActivePlaylistRow(snap: snap),
+                const SizedBox(height: 10),
+                _CockpitScrubber(
+                  position: snap.position,
+                  duration: snap.duration,
                 ),
-        ),
+                const SizedBox(height: 12),
+                _TransportCluster(
+                  snap: snap,
+                  centerPlaySize: SonicTokens.mobilePlaySize,
+                  includeShuffleRepeat: false,
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1510,7 +1500,7 @@ class WebVideoManager {
     };
     WebVideoBridge.onPause = () {
       _controller?.runJavaScript(
-          "try { window._slShouldPlay = false; var v = document.querySelector('video.html5-main-video') || document.querySelector('#player video') || document.querySelector('video'); if (v) v.pause(); } catch(e){}");
+          "try { if (window._slForcePause) window._slForcePause(); else { window._slShouldPlay = false; var v = document.querySelector('video.html5-main-video') || document.querySelector('#player video') || document.querySelector('video'); if (v) v.pause(); } } catch(e){}");
     };
     WebVideoBridge.onSeek = (pos) {
       final sec = pos.inMilliseconds / 1000.0;
@@ -1630,6 +1620,65 @@ class WebVideoManager {
           return;
         }
 
+        // 1. Guard against unwanted third-party pauses (e.g. resize observers or visibility checks)
+        try {
+          if (!window._slPauseGuarded) {
+            window._slPauseGuarded = true;
+            window._slRealPause = HTMLMediaElement.prototype.pause;
+            HTMLMediaElement.prototype.pause = function() {
+              if (window._slShouldPlay && !this.ended) {
+                return;
+              }
+              return window._slRealPause.apply(this, arguments);
+            };
+            if (HTMLVideoElement.prototype.pause && HTMLVideoElement.prototype.pause !== window._slRealPause) {
+              HTMLVideoElement.prototype.pause = function() {
+                if (window._slShouldPlay && !this.ended) {
+                  return;
+                }
+                return window._slRealPause.apply(this, arguments);
+              };
+            }
+          }
+        } catch(e) {}
+
+        // 2. Force pause API for when the user explicitly pauses in Flutter
+        window._slForcePause = function() {
+          window._slShouldPlay = false;
+          var all = document.querySelectorAll('video');
+          for (var i = 0; i < all.length; i++) {
+            try {
+              if (window._slRealPause) {
+                window._slRealPause.call(all[i]);
+              } else {
+                all[i].pause();
+              }
+            } catch(e) {}
+          }
+        };
+
+        // 3. Spoof document visibility so background / resize events never trigger tab hidden
+        try {
+          Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });
+          Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });
+        } catch(e) {}
+        try {
+          ['visibilitychange', 'webkitvisibilitychange'].forEach(function(evt) {
+            window.addEventListener(evt, function(e) { e.stopImmediatePropagation(); }, true);
+            document.addEventListener(evt, function(e) { e.stopImmediatePropagation(); }, true);
+          });
+        } catch(e) {}
+
+        // 4. Permanently lock out native iOS / WebKit / Android fullscreen takeover
+        try {
+          if (!window._slFsPrevented) {
+            window._slFsPrevented = true;
+            HTMLVideoElement.prototype.webkitEnterFullscreen = function() { return false; };
+            HTMLVideoElement.prototype.webkitRequestFullscreen = function() { return false; };
+            HTMLVideoElement.prototype.requestFullscreen = function() { return false; };
+          }
+        } catch(e) {}
+
         function applyStyle() {
           var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer, ytm-inline-playback-renderer, .ytm-inline-player, ytm-custom-miniplayer-renderer, .video-preview { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
           var el = document.getElementById('sl-clean-style');
@@ -1645,16 +1694,6 @@ class WebVideoManager {
         }
 
         applyStyle();
-
-        // 1. Permanently lock out native iOS / WebKit / Android fullscreen takeover
-        try {
-          if (!window._slFsPrevented) {
-            window._slFsPrevented = true;
-            HTMLVideoElement.prototype.webkitEnterFullscreen = function() { return false; };
-            HTMLVideoElement.prototype.webkitRequestFullscreen = function() { return false; };
-            HTMLVideoElement.prototype.requestFullscreen = function() { return false; };
-          }
-        } catch(e) {}
 
         function ensureInline(v) {
           if (!v) return;
@@ -1674,29 +1713,12 @@ class WebVideoManager {
           return document.querySelector('#player-container-id video, #player video, .html5-video-player video, video.video-stream, video');
         }
 
-        function isolatePrimaryMedia() {
-          var main = getPrimaryVideo();
-          if (!main) return;
-          var allVideos = document.querySelectorAll('video');
-          for (var i = 0; i < allVideos.length; i++) {
-            var v = allVideos[i];
-            if (v !== main) {
-              try {
-                v.pause();
-                v.muted = true;
-                v.volume = 0;
-              } catch(e) {}
-            }
-          }
-        }
-
         function safeResume() {
           var v = getPrimaryVideo();
           if (!v || !window._slShouldPlay || v.ended) return;
           if (!v.paused) return;
           if (window._slResuming) return;
           window._slResuming = true;
-          isolatePrimaryMedia();
           v.play().catch(function(){}).finally(function() {
             setTimeout(function() { window._slResuming = false; }, 350);
           });
@@ -1750,19 +1772,15 @@ class WebVideoManager {
               }
 
               applyStyle();
-              isolatePrimaryMedia();
 
-              // Auto-dismiss explicit dialog popups only
-              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button, ytm-consent-bump-v2-renderer button, .eom-dialog button');
-              popups.forEach(function(p) { if (p.offsetParent !== null) p.click(); });
+              // Cleanly dismiss modal dialogs without synthetic clicks that trigger reCAPTCHA
+              var dialogs = document.querySelectorAll('.upsell-dialog-renderer, ytm-app-banner, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump');
+              dialogs.forEach(function(d) { try { d.remove(); } catch(e){} });
 
-              // Cleanly click skip ad button
+              // Cleanly click skip ad button if an ad is present
               var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
-              if (skip && skip.offsetParent !== null) skip.click();
-
-              var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, [aria-label*="unmute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i]');
-              if (unmuteBtn && unmuteBtn.offsetParent !== null) {
-                unmuteBtn.click();
+              if (skip && skip.offsetParent !== null) {
+                try { skip.click(); } catch(e){}
               }
 
               var video = getPrimaryVideo();
@@ -1782,7 +1800,6 @@ class WebVideoManager {
 
           ['click', 'touchstart', 'pointerdown'].forEach(function(evt) {
             document.addEventListener(evt, function() {
-              isolatePrimaryMedia();
               var v = getPrimaryVideo();
               if (v) {
                 hookVideo(v);
@@ -1805,14 +1822,14 @@ class WebVideoManager {
   void pause() {
     try {
       _controller?.runJavaScript(
-          "try { window._slShouldPlay = false; var v = document.querySelector('video.html5-main-video') || document.querySelector('#player video') || document.querySelector('video'); if (v) v.pause(); } catch(e){}");
+          "try { if (window._slForcePause) window._slForcePause(); else { window._slShouldPlay = false; var v = document.querySelector('video.html5-main-video') || document.querySelector('#player video') || document.querySelector('video'); if (v) v.pause(); } } catch(e){}");
     } catch (_) {}
   }
 
   void release() {
     try {
       _controller?.runJavaScript(
-          "try { if (window._slLoop) clearInterval(window._slLoop); window._slLoop = null; window._slShouldPlay = false; var v = document.querySelector('video.html5-main-video') || document.querySelector('#player video') || document.querySelector('video'); if (v) v.pause(); } catch(e){}");
+          "try { if (window._slLoop) clearInterval(window._slLoop); window._slLoop = null; if (window._slForcePause) window._slForcePause(); } catch(e){}");
       _controller?.loadRequest(Uri.parse('about:blank'));
     } catch (_) {}
     _controller = null;
