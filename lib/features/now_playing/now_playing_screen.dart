@@ -295,6 +295,33 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () {
+                            _onUserInteraction();
+                            final vid = WebVideoManager.instance.activeVideoId;
+                            if (vid != null) {
+                              WebVideoManager.instance.recoverFromStreamError(
+                                snap.position.inSeconds.toDouble(),
+                                force: true,
+                              );
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.65),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: const Icon(
+                              Icons.refresh_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -1516,10 +1543,54 @@ class WebVideoManager {
   WebViewController? _controller;
   String? _activeVideoId;
   bool _isReady = false;
+  DateTime? _lastRecoveryTime;
+  int _recoveryAttempts = 0;
 
   WebViewController? get controller => _controller;
   String? get activeVideoId => _activeVideoId;
   bool get isReady => _isReady;
+
+  void recoverFromStreamError(double cur, {bool force = false}) {
+    final now = DateTime.now();
+    if (!force &&
+        _lastRecoveryTime != null &&
+        now.difference(_lastRecoveryTime!) < const Duration(seconds: 4)) {
+      return;
+    }
+    _lastRecoveryTime = now;
+    if (force) {
+      _recoveryAttempts = 0;
+    } else {
+      _recoveryAttempts++;
+    }
+
+    if (!force && _recoveryAttempts > 5) {
+      debugPrint('[WebVideo] Max recovery attempts reached for current track.');
+      SonicAudioEngine.instance.setStatusBanner(
+        'Lỗi luồng phát từ máy chủ. Vui lòng thử lại sau hoặc chuyển bài.',
+      );
+      return;
+    }
+
+    final curSec = cur.round();
+    final vid = _activeVideoId;
+    if (vid == null || _controller == null) return;
+
+    debugPrint(
+        '[WebVideo] Stream recovery triggered at ${curSec}s (attempt $_recoveryAttempts)...');
+    SonicAudioEngine.instance
+        .setStatusBanner('Đang tự động kết nối lại video...');
+
+    final uri = curSec > 3
+        ? Uri.parse('$_kWebWatchBase$vid&t=${curSec}s')
+        : Uri.parse('$_kWebWatchBase$vid');
+
+    _injectCleanerScript(_controller);
+    _controller?.loadRequest(uri);
+    Future.delayed(const Duration(seconds: 3), () {
+      SonicAudioEngine.instance.clearStatusBanner();
+    });
+  }
 
   WebViewController getOrCreateController(String videoId,
       {VoidCallback? onReady}) {
@@ -1532,8 +1603,10 @@ class WebVideoManager {
 
     _activeVideoId = videoId;
     _isReady = false;
+    _recoveryAttempts = 0;
+    _lastRecoveryTime = null;
     _controller?.runJavaScript(
-        "try { window._slShouldPlay = true; } catch(e){}");
+        "try { window._slShouldPlay = true; window._slRecovering = false; } catch(e){}");
 
     late final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
@@ -1576,6 +1649,9 @@ class WebVideoManager {
                 SonicAudioEngine.instance.setStatusBanner(
                   'Yêu cầu xác minh Google reCAPTCHA. Vui lòng bấm vào ô để tiếp tục.',
                 );
+              } else if (type == 'stream_error') {
+                final cur = (data['cur'] as num?)?.toDouble() ?? 0.0;
+                WebVideoManager.instance.recoverFromStreamError(cur);
               }
             }
           } catch (_) {}
@@ -1613,6 +1689,10 @@ class WebVideoManager {
   static Future<void> _injectCleanerScript(WebViewController? ctrl) async {
     const js = """
       (function() {
+        try {
+          Object.defineProperty(navigator, 'webdriver', { get: function() { return false; }, configurable: true });
+        } catch(e) {}
+
         var hasCaptcha = document.querySelector('iframe[src*="recaptcha"], .g-recaptcha, #recaptcha, form[action*="sorry"]');
         if (hasCaptcha) {
           try {
@@ -1624,29 +1704,62 @@ class WebVideoManager {
           return;
         }
 
-        // 1. Guard against unwanted third-party pauses (e.g. resize observers or visibility checks)
+        // Prevent off-screen visibility auto-pauses by spoofing IntersectionObserver
+        try {
+          if (!window._slIOOverridden && window.IntersectionObserver) {
+            window._slIOOverridden = true;
+            var OrigIO = window.IntersectionObserver;
+            window.IntersectionObserver = function(callback, options) {
+              return new OrigIO(function(entries, observer) {
+                var spoofed = entries.map(function(e) {
+                  try {
+                    Object.defineProperty(e, 'isIntersecting', { get: function() { return true; } });
+                    Object.defineProperty(e, 'intersectionRatio', { get: function() { return 1.0; } });
+                  } catch(_) {}
+                  return e;
+                });
+                callback(spoofed, observer);
+              }, options);
+            };
+            window.IntersectionObserver.prototype = OrigIO.prototype;
+          }
+        } catch(e) {}
+
+        // Guard against unwanted UI / resize observer pauses while in active playback,
+        // while ALWAYS allowing internal buffering (readyState < 3), seeking, ended, and error recovery!
         try {
           if (!window._slPauseGuarded) {
             window._slPauseGuarded = true;
             window._slRealPause = HTMLMediaElement.prototype.pause;
             HTMLMediaElement.prototype.pause = function() {
-              if (window._slShouldPlay && !this.ended) {
-                return;
+              // 1. Explicit app pause by user: always allow
+              if (!window._slShouldPlay) {
+                return window._slRealPause.apply(this, arguments);
               }
-              return window._slRealPause.apply(this, arguments);
+              // 2. Video ended: always allow
+              if (this.ended) {
+                return window._slRealPause.apply(this, arguments);
+              }
+              // 3. Media or network error: always allow so player error logic can run/recover
+              if (this.error) {
+                return window._slRealPause.apply(this, arguments);
+              }
+              // 4. Video is buffering, seeking, or lacks future data (readyState < 3):
+              // MUST allow pause so MediaSource can buffer new chunks without buffer underrun/stalling!
+              if (this.seeking || this.readyState < 3) {
+                return window._slRealPause.apply(this, arguments);
+              }
+              // 5. Video has plenty of data (readyState >= 3) and is healthy:
+              // Swallow unwanted UI / resize observer pauses while in active playback.
+              return;
             };
             if (HTMLVideoElement.prototype.pause && HTMLVideoElement.prototype.pause !== window._slRealPause) {
-              HTMLVideoElement.prototype.pause = function() {
-                if (window._slShouldPlay && !this.ended) {
-                  return;
-                }
-                return window._slRealPause.apply(this, arguments);
-              };
+              HTMLVideoElement.prototype.pause = HTMLMediaElement.prototype.pause;
             }
           }
         } catch(e) {}
 
-        // 2. Force pause API for when the user explicitly pauses in Flutter
+        // Force pause API for when the user explicitly pauses in Flutter
         window._slForcePause = function() {
           window._slShouldPlay = false;
           var all = document.querySelectorAll('video');
@@ -1661,7 +1774,7 @@ class WebVideoManager {
           }
         };
 
-        // 3. Spoof document visibility so background / resize events never trigger tab hidden
+        // Spoof document visibility so background / resize events never trigger tab hidden
         try {
           Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });
           Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });
@@ -1673,7 +1786,7 @@ class WebVideoManager {
           });
         } catch(e) {}
 
-        // 4. Permanently lock out native iOS / WebKit / Android fullscreen takeover
+        // Permanently lock out native iOS / WebKit / Android fullscreen takeover
         try {
           if (!window._slFsPrevented) {
             window._slFsPrevented = true;
@@ -1735,6 +1848,7 @@ class WebVideoManager {
           ensureInline(v);
           var lastReport = 0;
           v.addEventListener('timeupdate', function() {
+            window._slLastTime = v.currentTime;
             var now = Date.now();
             if (now - lastReport >= 500) {
               lastReport = now;
@@ -1761,6 +1875,61 @@ class WebVideoManager {
         var initV = getPrimaryVideo();
         if (initV) hookVideo(initV);
 
+        function checkAndRecoverFromError() {
+          var video = getPrimaryVideo();
+          var hasVideoError = video && video.error;
+
+          var errContainer = document.querySelector(
+            '.ytp-error, .ytp-error-content, ytm-player-error-message-renderer, #error-screen, .player-error-message'
+          );
+          var hasTextError = false;
+          if (!errContainer) {
+            var player = document.querySelector('#player-container-id, #player, .html5-video-player');
+            if (player) {
+              var txt = player.innerText || '';
+              if (txt.indexOf('Something went wrong') !== -1 ||
+                  txt.indexOf('Refresh or try again') !== -1 ||
+                  txt.indexOf('Đã xảy ra lỗi') !== -1 ||
+                  txt.indexOf('Thử lại') !== -1) {
+                hasTextError = true;
+              }
+            }
+          }
+
+          if (hasVideoError || errContainer || hasTextError) {
+            if (window._slRecovering) return;
+            window._slRecovering = true;
+
+            // 1. If an on-screen retry / refresh button exists, click it first
+            var retryBtn = document.querySelector(
+              '.ytp-error button, ytm-player-error-message-renderer button, [aria-label*="retry" i], [aria-label*="refresh" i], [aria-label*="thử lại" i]'
+            );
+            if (retryBtn && retryBtn.offsetParent !== null) {
+              try {
+                retryBtn.click();
+              } catch(e) {}
+            }
+
+            // 2. Report error and last known timestamp to Flutter bridge for reliable controller reload
+            var curTime = (video && video.currentTime > 0)
+              ? video.currentTime
+              : (window._slLastTime || 0);
+
+            try {
+              if (window.SoniclaneBridge) {
+                window.SoniclaneBridge.postMessage(JSON.stringify({
+                  type: 'stream_error',
+                  cur: curTime
+                }));
+              }
+            } catch(e) {}
+
+            setTimeout(function() {
+              window._slRecovering = false;
+            }, 5000);
+          }
+        }
+
         if (!window._slLoop) {
           window._slLoop = setInterval(function() {
             try {
@@ -1774,6 +1943,9 @@ class WebVideoManager {
                 } catch(e) {}
                 return;
               }
+
+              // Detect stream errors and automatically recover
+              checkAndRecoverFromError();
 
               applyStyle();
 
@@ -1975,9 +2147,10 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
                 children: [
                   InkWell(
                     onTap: () {
-                      WebVideoManager._injectCleanerScript(_ctrl);
-                      _ctrl?.loadRequest(
-                          Uri.parse('$_kWebWatchBase${widget.videoId}'));
+                      WebVideoManager.instance.recoverFromStreamError(
+                        SonicAudioEngine.instance.snapshot.position.inSeconds.toDouble(),
+                        force: true,
+                      );
                     },
                     borderRadius: BorderRadius.circular(999),
                     child: Container(
