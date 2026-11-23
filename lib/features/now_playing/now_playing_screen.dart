@@ -71,13 +71,38 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 
   void _onUserInteraction() {
+    _fullscreenHudTimer?.cancel();
     if (!_showFullscreenControls) {
       setState(() => _showFullscreenControls = true);
     }
-    _fullscreenHudTimer?.cancel();
-    _fullscreenHudTimer = Timer(const Duration(milliseconds: 3500), () {
+    _fullscreenHudTimer = Timer(const Duration(milliseconds: 4000), () {
       if (mounted) setState(() => _showFullscreenControls = false);
     });
+  }
+
+  void _toggleFullscreenControls() {
+    _fullscreenHudTimer?.cancel();
+    if (!_showFullscreenControls) {
+      setState(() => _showFullscreenControls = true);
+      _fullscreenHudTimer = Timer(const Duration(milliseconds: 4000), () {
+        if (mounted) setState(() => _showFullscreenControls = false);
+      });
+    } else {
+      setState(() => _showFullscreenControls = false);
+    }
+  }
+
+  void _setFullscreen(bool open) {
+    _fullscreenHudTimer?.cancel();
+    setState(() {
+      _isFullscreenOpen = open;
+      if (open) {
+        _showFullscreenControls = true;
+      }
+    });
+    if (open) {
+      _onUserInteraction();
+    }
   }
 
   void _minimize() {
@@ -205,11 +230,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   context,
                   snap,
                   track,
-                  onExit: () {
-                    setState(() {
-                      _isFullscreenOpen = false;
-                    });
-                  },
+                  onExit: () => _setFullscreen(false),
                 ),
             ],
           ),
@@ -224,14 +245,14 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     MediaTrack? track, {
     VoidCallback? onExit,
   }) {
-    return AnimatedOpacity(
-      opacity: _showFullscreenControls ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 250),
-      child: IgnorePointer(
-        ignoring: !_showFullscreenControls,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: _onUserInteraction,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _toggleFullscreenControls,
+      child: AnimatedOpacity(
+        opacity: _showFullscreenControls ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 250),
+        child: IgnorePointer(
+          ignoring: !_showFullscreenControls,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -258,12 +279,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     child: Row(
                       children: [
                         InkWell(
-                          onTap: onExit ??
-                              () {
-                                setState(() {
-                                  _isFullscreenOpen = false;
-                                });
-                              },
+                          onTap: onExit ?? () => _setFullscreen(false),
                           borderRadius: BorderRadius.circular(999),
                           child: Container(
                             padding: const EdgeInsets.all(8),
@@ -518,11 +534,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     : 16 / 9,
                   cleanMobileStage: true,
                   isFullscreen: isFullscreen,
-                  onToggleFullscreen: () {
-                    setState(() {
-                      _isFullscreenOpen = !isFullscreen;
-                    });
-                  },
+                  onToggleFullscreen: () => _setFullscreen(!isFullscreen),
                 ),
               ),
             ),
@@ -588,11 +600,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 if (snap.isVideoMode) ...[
                   const SizedBox(width: 14),
                   CockpitTouchButton(
-                    onTap: () {
-                      setState(() {
-                        _isFullscreenOpen = true;
-                      });
-                    },
+                    onTap: () => _setFullscreen(true),
                     backgroundColor: SonicTokens.surfaceElevated,
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -686,11 +694,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                                 position: snap.position,
                                 aspectRatio: 16 / 9,
                                 cleanMobileStage: false,
-                                onToggleFullscreen: () {
-                                  setState(() {
-                                    _isFullscreenOpen = true;
-                                  });
-                                },
+                                onToggleFullscreen: () => _setFullscreen(true),
                               ),
                               const SizedBox(height: 16),
                               _TrackTitleRow(
@@ -1680,7 +1684,7 @@ class WebVideoManager {
         } catch(e) {}
 
         function applyStyle() {
-          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer, ytm-inline-playback-renderer, .ytm-inline-player, ytm-custom-miniplayer-renderer, .video-preview { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
+          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer, ytm-inline-playback-renderer, .ytm-inline-player, ytm-custom-miniplayer-renderer, .video-preview, .ytp-unmute, .ytp-unmute-inner, .ytp-unmute-box, .ytp-mute-button, .ytp-volume-area, .ytp-volume-panel, .player-volume-control, .volume-slider, [aria-label*="unmute" i], [aria-label*="mute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i], [aria-label*="t\\\\u1eaft ti\\\\u1ebfng" i] { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
           var el = document.getElementById('sl-clean-style');
           if (!el) {
             el = document.createElement('style');
@@ -1776,6 +1780,10 @@ class WebVideoManager {
               // Cleanly dismiss modal dialogs without synthetic clicks that trigger reCAPTCHA
               var dialogs = document.querySelectorAll('.upsell-dialog-renderer, ytm-app-banner, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump');
               dialogs.forEach(function(d) { try { d.remove(); } catch(e){} });
+
+              // Permanently remove any mute/unmute overlay buttons or indicators
+              var muteEls = document.querySelectorAll('.ytp-unmute, .ytp-unmute-inner, .ytp-unmute-box, .ytp-mute-button, .ytp-volume-area, [aria-label*="unmute" i], [aria-label*="mute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i], [aria-label*="t\\\\u1eaft ti\\\\u1ebfng" i]');
+              muteEls.forEach(function(m) { try { m.remove(); } catch(e){} });
 
               // Cleanly click skip ad button if an ad is present
               var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
