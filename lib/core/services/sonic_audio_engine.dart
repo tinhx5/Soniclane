@@ -524,6 +524,7 @@ class SonicAudioEngine {
     });
 
     player.stream.playing.listen((playing) {
+      if (_isOnlineMobileVideo) return;
       _emit(_snapshot.copyWith(isPlaying: playing));
       _syncHandlerState();
       if (!playing &&
@@ -537,15 +538,18 @@ class SonicAudioEngine {
     });
 
     player.stream.buffering.listen((buffering) {
+      if (_isOnlineMobileVideo) return;
       _emit(_snapshot.copyWith(isBuffering: buffering));
       _syncHandlerState();
     });
 
     player.stream.position.listen((pos) {
+      if (_isOnlineMobileVideo) return;
       _emit(_snapshot.copyWith(position: pos));
     });
 
     player.stream.duration.listen((dur) {
+      if (_isOnlineMobileVideo) return;
       if (dur > Duration.zero) {
         _emit(_snapshot.copyWith(duration: dur));
         _attachPendingExternalAudioIfReady();
@@ -553,18 +557,21 @@ class SonicAudioEngine {
     });
 
     player.stream.tracks.listen((tracks) {
+      if (_isOnlineMobileVideo) return;
       if (tracks.video.any((v) => v.id != 'auto' && v.id != 'no')) {
         _attachPendingExternalAudioIfReady();
       }
     });
 
     player.stream.width.listen((w) {
+      if (_isOnlineMobileVideo) return;
       if ((w ?? 0) > 0) {
         _attachPendingExternalAudioIfReady();
       }
     });
 
     player.stream.completed.listen((completed) {
+      if (_isOnlineMobileVideo) return;
       if (completed) {
         // Guard against false EOF: if stream drops prematurely while position is far from duration
         final currentPos = _snapshot.position;

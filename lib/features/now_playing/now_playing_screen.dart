@@ -1631,7 +1631,7 @@ class WebVideoManager {
         }
 
         function applyStyle() {
-          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer, ytm-inline-playback-renderer, .ytm-inline-player, ytm-custom-miniplayer-renderer, .video-preview { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video.html5-main-video, #player video, .html5-video-player video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
+          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer, ytm-inline-playback-renderer, .ytm-inline-player, ytm-custom-miniplayer-renderer, .video-preview { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
           var el = document.getElementById('sl-clean-style');
           if (!el) {
             el = document.createElement('style');
@@ -1639,6 +1639,8 @@ class WebVideoManager {
             el.textContent = css;
             var target = document.head || document.documentElement || document.body;
             if (target) target.appendChild(el);
+          } else {
+            el.textContent = css;
           }
         }
 
@@ -1669,26 +1671,20 @@ class WebVideoManager {
         }
 
         function getPrimaryVideo() {
-          return document.querySelector('video.html5-main-video') ||
-                 document.querySelector('#player video') ||
-                 document.querySelector('.html5-video-player video') ||
-                 document.querySelector('video');
+          return document.querySelector('#player-container-id video, #player video, .html5-video-player video, video.video-stream, video');
         }
 
         function isolatePrimaryMedia() {
           var main = getPrimaryVideo();
           if (!main) return;
-          var allMedia = document.querySelectorAll('video, audio');
-          for (var i = 0; i < allMedia.length; i++) {
-            var m = allMedia[i];
-            if (m !== main) {
+          var allVideos = document.querySelectorAll('video');
+          for (var i = 0; i < allVideos.length; i++) {
+            var v = allVideos[i];
+            if (v !== main) {
               try {
-                m.pause();
-                m.muted = true;
-                m.volume = 0;
-                m.removeAttribute('src');
-                m.load();
-                if (m.parentNode) m.parentNode.removeChild(m);
+                v.pause();
+                v.muted = true;
+                v.volume = 0;
               } catch(e) {}
             }
           }
@@ -1756,15 +1752,15 @@ class WebVideoManager {
               applyStyle();
               isolatePrimaryMedia();
 
-              // Auto-dismiss consent, upsell, and inactivity prompts
-              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button, yt-confirm-dialog-renderer button, #confirm-button button, button[aria-label*="Continue" i], button[aria-label*="Ti\\\\u1ebfp t\\\\u1ee5c" i], button[aria-label*="Yes" i], button[aria-label*="C\\\\u00f3" i]');
-              popups.forEach(function(p) { p.click(); });
+              // Auto-dismiss explicit dialog popups only
+              var popups = document.querySelectorAll('button[aria-label="Accept all"], button[aria-label="Agree"], button[aria-label="Dismiss"], button[aria-label="No thanks"], .upsell-dialog-renderer button, ytm-app-banner button, ytm-consent-bump-v2-renderer button, .eom-dialog button');
+              popups.forEach(function(p) { if (p.offsetParent !== null) p.click(); });
 
-              // Cleanly click skip ad button without modifying video.currentTime
-              var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-text');
-              if (skip) skip.click();
+              // Cleanly click skip ad button
+              var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
+              if (skip && skip.offsetParent !== null) skip.click();
 
-              var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, button.ytp-mute-button, [aria-label*="unmute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i]');
+              var unmuteBtn = document.querySelector('.ytp-unmute, .ytp-unmute-inner, [aria-label*="unmute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i]');
               if (unmuteBtn && unmuteBtn.offsetParent !== null) {
                 unmuteBtn.click();
               }
@@ -1782,7 +1778,7 @@ class WebVideoManager {
                 }
               }
             } catch (e) {}
-          }, 1200);
+          }, 1500);
 
           ['click', 'touchstart', 'pointerdown'].forEach(function(evt) {
             document.addEventListener(evt, function() {
@@ -1879,7 +1875,7 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     }
     if (oldWidget.isFullscreen != widget.isFullscreen && widget.isPlaying) {
       _ctrl?.runJavaScript(
-          "try { if (window._slSafeResume) window._slSafeResume(); } catch(e){}");
+          "try { var v = document.querySelector('video'); if (v && v.paused && window._slShouldPlay && window._slSafeResume) window._slSafeResume(); } catch(e){}");
     }
   }
 
