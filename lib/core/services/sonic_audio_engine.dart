@@ -637,6 +637,11 @@ class SonicAudioEngine {
     _pendingExternalAudioUri = null;
     _lastResolvedServerUrl = null;
 
+    // Immediately silence and pause any currently playing media (both Web Video and native audio)
+    // to prevent overlap/mixing while the new track is being resolved and prepared.
+    WebVideoBridge.onPause?.call();
+    await _player?.pause();
+
     if (_snapshot.currentTrack != null &&
         _snapshot.currentTrack!.id != track.id) {
       _historyStack.add(_snapshot.currentTrack!);
@@ -1090,6 +1095,8 @@ class SonicAudioEngine {
     if (_isSkipping) return;
     _isSkipping = true;
     try {
+      WebVideoBridge.onPause?.call();
+      await _player?.pause();
       final q = _snapshot.queue;
       if (q.isEmpty) return;
 
@@ -1151,6 +1158,8 @@ class SonicAudioEngine {
   /// If current playback > 3 seconds -> Restart current track.
   /// If <= 3 seconds -> Pop previous track from session history.
   Future<void> skipToPrevious() async {
+    WebVideoBridge.onPause?.call();
+    await _player?.pause();
     if (_snapshot.position.inSeconds > 3) {
       await seekTo(Duration.zero);
       return;

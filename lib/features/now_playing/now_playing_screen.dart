@@ -1312,7 +1312,7 @@ class _MediaStageBoxState extends State<_MediaStageBox> {
       children: [
         if (renderWebPlayer) ...[
           _EmbeddedWebVideoStage(
-            key: ValueKey('embedded_web_stage_${track.id}'),
+            key: const ValueKey('embedded_web_stage_singleton'),
             videoId: track.id,
             isPlaying: widget.isPlaying,
             isFullscreen: widget.isFullscreen,
@@ -1594,10 +1594,33 @@ class WebVideoManager {
 
   WebViewController getOrCreateController(String videoId,
       {VoidCallback? onReady}) {
-    if (_controller != null && _activeVideoId == videoId) {
-      if (_isReady && onReady != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
+    if (_controller != null) {
+      if (_activeVideoId == videoId) {
+        if (_isReady && onReady != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
+        }
+        return _controller!;
       }
+
+      // Re-use existing controller cleanly: immediately silence and destroy previous video media!
+      _activeVideoId = videoId;
+      _isReady = false;
+      _recoveryAttempts = 0;
+      _lastRecoveryTime = null;
+
+      try {
+        _controller!.runJavaScript(
+          "try { "
+          "if (window._slLoop) clearInterval(window._slLoop); window._slLoop = null; "
+          "window._slShouldPlay = false; "
+          "var all = document.querySelectorAll('video'); "
+          "for (var i = 0; i < all.length; i++) { all[i].pause(); all[i].muted = true; all[i].src = ''; all[i].load(); } "
+          "} catch(e){}"
+        );
+      } catch (_) {}
+
+      _injectCleanerScript(_controller);
+      _controller!.loadRequest(Uri.parse('$_kWebWatchBase$videoId'));
       return _controller!;
     }
 
@@ -1605,8 +1628,6 @@ class WebVideoManager {
     _isReady = false;
     _recoveryAttempts = 0;
     _lastRecoveryTime = null;
-    _controller?.runJavaScript(
-        "try { window._slShouldPlay = true; window._slRecovering = false; } catch(e){}");
 
     late final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
@@ -2002,7 +2023,7 @@ class WebVideoManager {
   void pause() {
     try {
       _controller?.runJavaScript(
-          "try { if (window._slForcePause) window._slForcePause(); else { window._slShouldPlay = false; var v = document.querySelector('video.html5-main-video') || document.querySelector('#player video') || document.querySelector('video'); if (v) v.pause(); } } catch(e){}");
+          "try { window._slShouldPlay = false; if (window._slForcePause) window._slForcePause(); var all = document.querySelectorAll('video'); for (var i = 0; i < all.length; i++) { all[i].pause(); all[i].muted = true; } } catch(e){}");
     } catch (_) {}
   }
 
@@ -2053,6 +2074,9 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
   void didUpdateWidget(covariant _EmbeddedWebVideoStage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoId != widget.videoId) {
+      if (mounted) {
+        setState(() => _isReady = false);
+      }
       _ctrl = WebVideoManager.instance.getOrCreateController(
         widget.videoId,
         onReady: () {
@@ -2081,7 +2105,9 @@ class _EmbeddedWebVideoStageState extends State<_EmbeddedWebVideoStage> {
     try {
       WakelockPlus.disable();
     } catch (_) {}
-    // The controller remains alive in WebVideoManager across minimize/restore/rotations.
+    if (!SonicAudioEngine.instance.snapshot.isVideoMode) {
+      WebVideoManager.instance.pause();
+    }
     super.dispose();
   }
 
