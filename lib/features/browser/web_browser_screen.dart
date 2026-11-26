@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import '../../core/services/sonic_audio_engine.dart';
 import '../../core/theme/sonic_tokens.dart';
 
 /// Neutral general-purpose In-App Web Browser accessible from Settings.
@@ -15,6 +18,9 @@ class WebBrowserScreen extends StatefulWidget {
   const WebBrowserScreen({super.key, this.initialUrl});
 
   static Future<void> open(BuildContext context, {String? initialUrl}) {
+    try {
+      SonicAudioEngine.instance.pause();
+    } catch (_) {}
     return Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => WebBrowserScreen(initialUrl: initialUrl),
@@ -41,8 +47,25 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
   void initState() {
     super.initState();
     if (_supportsEmbeddedWebView) {
-      final ctrl = WebViewController()
+      late final PlatformWebViewControllerCreationParams params;
+      if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+        params = WebKitWebViewControllerCreationParams(
+          allowsInlineMediaPlayback: true,
+          mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+        );
+      } else if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+        params = AndroidWebViewControllerCreationParams();
+      } else {
+        params = const PlatformWebViewControllerCreationParams();
+      }
+
+      final String mobileUserAgent = (!kIsWeb && Platform.isIOS)
+          ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+          : 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
+
+      final ctrl = WebViewController.fromPlatformCreationParams(params)
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setUserAgent(mobileUserAgent)
         ..setBackgroundColor(SonicTokens.surfaceBase)
         ..setNavigationDelegate(
           NavigationDelegate(
@@ -74,6 +97,12 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
             },
           ),
         );
+
+      if (ctrl.platform is AndroidWebViewController) {
+        final androidCtrl = ctrl.platform as AndroidWebViewController;
+        androidCtrl.setMediaPlaybackRequiresUserGesture(false);
+      }
+
       _controller = ctrl;
 
       final init = widget.initialUrl?.trim();
@@ -86,6 +115,12 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
   @override
   void dispose() {
     _urlCtrl.dispose();
+    try {
+      _controller?.runJavaScript(
+        "try { var all = document.querySelectorAll('video, audio'); for (var i = 0; i < all.length; i++) { all[i].pause(); all[i].src = ''; } } catch(e){}"
+      );
+      _controller?.loadRequest(Uri.parse('about:blank'));
+    } catch (_) {}
     super.dispose();
   }
 
@@ -107,6 +142,11 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
     final uri = _normalizeInputToUri(raw);
     if (uri == null || _controller == null) return;
     FocusScope.of(context).unfocus();
+    try {
+      _controller?.runJavaScript(
+        "try { var all = document.querySelectorAll('video, audio'); for (var i = 0; i < all.length; i++) { all[i].pause(); all[i].muted = true; all[i].src = ''; } } catch(e){}"
+      );
+    } catch (_) {}
     setState(() {
       _hasLoadedPage = true;
       _progress = 10;
@@ -342,7 +382,14 @@ class _WebBrowserScreenState extends State<WebBrowserScreen> {
                     tooltip: 'Reload',
                     icon: const Icon(Icons.refresh_rounded, size: 22),
                     onPressed: _hasLoadedPage
-                        ? () => _controller?.reload()
+                        ? () {
+                            try {
+                              _controller?.runJavaScript(
+                                "try { var all = document.querySelectorAll('video, audio'); for (var i = 0; i < all.length; i++) { all[i].pause(); all[i].muted = true; all[i].src = ''; } } catch(e){}"
+                              );
+                            } catch (_) {}
+                            _controller?.reload();
+                          }
                         : null,
                   ),
                   IconButton(

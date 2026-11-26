@@ -1592,6 +1592,17 @@ class WebVideoManager {
         ? Uri.parse('$_kWebWatchBase$vid&t=${curSec}s')
         : Uri.parse('$_kWebWatchBase$vid');
 
+    try {
+      _controller?.runJavaScript(
+        "try { "
+        "if (window._slLoop) clearInterval(window._slLoop); window._slLoop = null; "
+        "window._slShouldPlay = false; "
+        "var all = document.querySelectorAll('video'); "
+        "for (var i = 0; i < all.length; i++) { all[i].pause(); all[i].muted = true; all[i].src = ''; all[i].load(); } "
+        "} catch(e){}"
+      );
+    } catch (_) {}
+
     _injectCleanerScript(_controller);
     _controller?.loadRequest(uri);
     Future.delayed(const Duration(seconds: 3), () {
