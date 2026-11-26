@@ -103,10 +103,17 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     if (open) {
       _onUserInteraction();
     }
+    // Temporarily ignore resize pauses in WebView for 1.2s during layout transition
+    WebVideoManager.instance.controller?.runJavaScript(
+      "try { window._slIgnorePauseTemporarily = true; setTimeout(function() { window._slIgnorePauseTemporarily = false; }, 1200); } catch(e){}"
+    );
   }
 
   void _minimize() {
     try {
+      WebVideoManager.instance.controller?.runJavaScript(
+        "try { window._slIgnorePauseTemporarily = true; setTimeout(function() { window._slIgnorePauseTemporarily = false; }, 1200); } catch(e){}"
+      );
       ref.read(mobileFullPlayerOpenProvider.notifier).state = false;
     } catch (_) {}
     try {
@@ -1641,12 +1648,14 @@ class WebVideoManager {
       params = const PlatformWebViewControllerCreationParams();
     }
 
+    final String mobileUserAgent = (!kIsWeb && Platform.isIOS)
+        ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+        : 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
+
     late final WebViewController ctrl;
     ctrl = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(
-        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
-      )
+      ..setUserAgent(mobileUserAgent)
       ..setBackgroundColor(Colors.black)
       ..addJavaScriptChannel(
         'SoniclaneBridge',
@@ -1746,33 +1755,17 @@ class WebVideoManager {
           }
         } catch(e) {}
 
-        // Guard against unwanted UI / resize observer pauses while in active playback,
-        // while ALWAYS allowing internal buffering (readyState < 3), seeking, ended, and error recovery!
+        // Guard against unwanted UI / resize observer pauses while in active playback.
+        // ONLY swallow pause during the brief window of UI layout change / fullscreen toggle!
         try {
           if (!window._slPauseGuarded) {
             window._slPauseGuarded = true;
             window._slRealPause = HTMLMediaElement.prototype.pause;
             HTMLMediaElement.prototype.pause = function() {
-              // 1. Explicit app pause by user: always allow
-              if (!window._slShouldPlay) {
-                return window._slRealPause.apply(this, arguments);
+              if (window._slIgnorePauseTemporarily && window._slShouldPlay && !this.ended) {
+                return;
               }
-              // 2. Video ended: always allow
-              if (this.ended) {
-                return window._slRealPause.apply(this, arguments);
-              }
-              // 3. Media or network error: always allow so player error logic can run/recover
-              if (this.error) {
-                return window._slRealPause.apply(this, arguments);
-              }
-              // 4. Video is buffering, seeking, or lacks future data (readyState < 3):
-              // MUST allow pause so MediaSource can buffer new chunks without buffer underrun/stalling!
-              if (this.seeking || this.readyState < 3) {
-                return window._slRealPause.apply(this, arguments);
-              }
-              // 5. Video has plenty of data (readyState >= 3) and is healthy:
-              // Swallow unwanted UI / resize observer pauses while in active playback.
-              return;
+              return window._slRealPause.apply(this, arguments);
             };
             if (HTMLVideoElement.prototype.pause && HTMLVideoElement.prototype.pause !== window._slRealPause) {
               HTMLVideoElement.prototype.pause = HTMLMediaElement.prototype.pause;
@@ -1818,7 +1811,7 @@ class WebVideoManager {
         } catch(e) {}
 
         function applyStyle() {
-          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .video-ads, .ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer, ytm-inline-playback-renderer, .ytm-inline-player, ytm-custom-miniplayer-renderer, .video-preview, .ytp-unmute, .ytp-unmute-inner, .ytp-unmute-box, .ytp-mute-button, .ytp-volume-area, .ytp-volume-panel, .player-volume-control, .volume-slider, [aria-label*="unmute" i], [aria-label*="mute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i], [aria-label*="t\\\\u1eaft ti\\\\u1ebfng" i] { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
+          var css = 'html, body { background: #000 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important; } ytm-mobile-topbar-renderer, header, #header-bar, .mobile-topbar-header, ytm-pivot-bar-renderer, ytm-watch-metadata, ytm-slim-video-metadata-renderer, .slim-video-metadata-title, .watch-below-the-player, #below, #comments, ytm-item-section-renderer, ytm-single-column-watch-next-results-renderer, ytm-app-banner, .upsell-dialog-renderer, ytm-consent-bump-v2-renderer, .eom-dialog, #consent-bump, dialog-container, .ytp-ad-overlay-container, .ytp-ad-text, ytd-masthead, #masthead-container, #secondary, #related, ytd-merch-shelf-renderer, ytd-watch-next-secondary-results-renderer, ytm-inline-playback-renderer, .ytm-inline-player, ytm-custom-miniplayer-renderer, .video-preview, .ytp-unmute, .ytp-unmute-inner, .ytp-unmute-box, .ytp-mute-button, .ytp-volume-area, .ytp-volume-panel, .player-volume-control, .volume-slider, [aria-label*="unmute" i], [aria-label*="mute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i], [aria-label*="t\\\\u1eaft ti\\\\u1ebfng" i] { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; } #player-container-id, .player-container, #player, #movie_player, .html5-video-player, ytd-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #000 !important; z-index: 99999 !important; } video, .video-stream, .html5-main-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: contain !important; z-index: 100000 !important; background: #000 !important; }';
           var el = document.getElementById('sl-clean-style');
           if (!el) {
             el = document.createElement('style');
@@ -1951,6 +1944,26 @@ class WebVideoManager {
           }
         }
 
+        function handleAds() {
+          var skipBtns = document.querySelectorAll(
+            '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-text, [id*="skip-button"] button'
+          );
+          skipBtns.forEach(function(b) {
+            try { b.click(); } catch(e){}
+          });
+
+          var adEl = document.querySelector('.ad-showing, .ad-interrupting');
+          if (adEl) {
+            var v = getPrimaryVideo();
+            if (v && v.duration && v.duration > 0 && !isNaN(v.duration)) {
+              try {
+                v.currentTime = v.duration - 0.1;
+                v.playbackRate = 16.0;
+              } catch(e) {}
+            }
+          }
+        }
+
         if (!window._slLoop) {
           window._slLoop = setInterval(function() {
             try {
@@ -1978,11 +1991,8 @@ class WebVideoManager {
               var muteEls = document.querySelectorAll('.ytp-unmute, .ytp-unmute-inner, .ytp-unmute-box, .ytp-mute-button, .ytp-volume-area, [aria-label*="unmute" i], [aria-label*="mute" i], [aria-label*="b\\\\u1eadt ti\\\\u1ebfng" i], [aria-label*="t\\\\u1eaft ti\\\\u1ebfng" i]');
               muteEls.forEach(function(m) { try { m.remove(); } catch(e){} });
 
-              // Cleanly click skip ad button if an ad is present
-              var skip = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
-              if (skip && skip.offsetParent !== null) {
-                try { skip.click(); } catch(e){}
-              }
+              // Auto-skip or fast-forward any ad cues
+              handleAds();
 
               var video = getPrimaryVideo();
               if (video) {
@@ -1991,9 +2001,32 @@ class WebVideoManager {
                   video.muted = false;
                 }
                 video.volume = 1.0;
-                // Auto-resume if app should be playing but video paused due to view change or resize
-                if (window._slShouldPlay && video.paused && !video.ended) {
-                  safeResume();
+
+                if (window._slShouldPlay && !video.ended) {
+                  if (video.paused) {
+                    safeResume();
+                  } else {
+                    // Stall Watchdog: if video is supposed to play but currentTime is frozen (e.g. ad boundary or buffer stall)
+                    if (typeof window._slStallPos === 'undefined') {
+                      window._slStallPos = video.currentTime;
+                      window._slStallCount = 0;
+                    } else if (Math.abs(video.currentTime - window._slStallPos) < 0.2) {
+                      window._slStallCount = (window._slStallCount || 0) + 1;
+                      if (window._slStallCount >= 3) { // ~4.5 seconds stuck
+                        safeResume();
+                        try {
+                          video.play().catch(function(){});
+                        } catch(e) {}
+                      }
+                      if (window._slStallCount >= 6) { // ~9 seconds stuck
+                        window._slStallCount = 0;
+                        checkAndRecoverFromError();
+                      }
+                    } else {
+                      window._slStallPos = video.currentTime;
+                      window._slStallCount = 0;
+                    }
+                  }
                 }
               }
             } catch (e) {}
